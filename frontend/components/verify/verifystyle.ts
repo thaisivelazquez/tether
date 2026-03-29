@@ -18,7 +18,6 @@ export const styles = StyleSheet.create({
     position: "relative",
   },
 
-  // ── Decorations (same as login) ──
   decoWrap: {
     position: "absolute",
     top: 0,
