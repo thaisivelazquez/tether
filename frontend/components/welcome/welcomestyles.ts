@@ -1,370 +1,298 @@
-import { StyleSheet, Dimensions } from "react-native";
+import { Platform, StyleSheet } from 'react-native';
 
-const { height } = Dimensions.get("window");
+export const FONT_SERIF = Platform.select({ ios: 'Georgia', android: 'serif' });
 
 export const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
-    backgroundColor: "#f3f3f3",
+    backgroundColor: '#FAF9F6',
   },
-
   slide: {
-   
-    height,
-    backgroundColor: "#f3f3f3",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flex: 1,
+    backgroundColor: '#FAF9F6',
+    paddingHorizontal: 28,
     paddingTop: 40,
-    paddingBottom: 46,
-    paddingHorizontal: 24,
+    paddingBottom: 20,
+    justifyContent: 'space-between',
   },
 
-  artWrap: {
-    width: "100%",
-    alignItems: "center",
+  // Typography
+  headline: {
+    fontFamily: FONT_SERIF,
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#111',
+    lineHeight: 42,
+    marginBottom: 12,
+  },
+  subheadline: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+    lineHeight: 26,
+  },
+  body: {
+    fontSize: 16,
+    color: '#444',
+    lineHeight: 24,
     marginTop: 8,
   },
-
-  textWrap: {
-    alignItems: "center",
-    marginTop: -6,
+  textBlock: {
+    marginTop: 32,
+    marginBottom: 16,
   },
 
-  title: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "700",
-    color: "#111",
-    textAlign: "center",
-    marginBottom: 14,
+  // Dots
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 6,
   },
-
-  subtitle: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "600",
-    color: "#111",
-    textAlign: "center",
-  },
-
-  nextBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-
-  nextBtnText: {
-    fontSize: 11,
-    color: "#111",
-  },
-
-  nextBtnArrow: {
-    fontSize: 14,
-    color: "#111",
-  },
-
-  progressWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-
-  progressDot: {
+  dot: {
     width: 6,
     height: 6,
-    borderRadius: 999,
-    backgroundColor: "#cfcfcf",
+    borderRadius: 3,
+    backgroundColor: '#CCC',
+  },
+  dotActive: {
+    width: 22,
+    backgroundColor: '#111',
   },
 
-  progressDotActive: {
-    width: 28,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#8d8d8d",
-  },
-
-  orbitOuter: {
-    width: 220,
+  // Slide 1 doodles
+  doodleArea: {
     height: 220,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#444",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    marginTop: 6,
+    position: 'relative',
+  },
+  doodleGlyph: {
+    fontSize: 52,
+    color: '#111',
+  },
+  doodleSpiral: {
+    position: 'absolute',
+    top: 20,
+    left: 10,
+  },
+  doodleRefresh: {
+    position: 'absolute',
+    top: 10,
+    right: 40,
+    transform: [{ scaleX: -1 }],
+  },
+  doodleSparkle: {
+    fontSize: 14,
+    color: '#111',
+    lineHeight: 18,
+  },
+  doodleSparkleLeft: {
+    position: 'absolute',
+    top: 90,
+    left: 80,
+    gap: 2,
+  },
+  doodleSparkleCenter: {
+    position: 'absolute',
+    top: 100,
+    left: 160,
+    gap: 2,
+  },
+  doodleNote: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+  },
+  doodleWisp: {
+    position: 'absolute',
+    bottom: 10,
+    left: 20,
   },
 
-  orbitInner: {
-    width: 88,
-    height: 88,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#777",
-    position: "absolute",
+  // Slide 2 orbit
+  orbitContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 260,
   },
-
-  orbitDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 999,
-    backgroundColor: "#c8c8c8",
-    position: "absolute",
+  outerRing: {
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    borderWidth: 1.5,
+    borderColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-
-  orbitDotSmall: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: "#a9a9a9",
-    position: "absolute",
-  },
-
-  orbitTinyA: {
-    position: "absolute",
-    left: 62,
-    bottom: 42,
-    fontSize: 5,
-    color: "#444",
-  },
-
-  orbitTinyB: {
-    position: "absolute",
-    left: 70,
-    bottom: 34,
-    fontSize: 5,
-    color: "#444",
-  },
-
-  cardsStack: {
-    width: "100%",
-    paddingHorizontal: 4,
-    gap: 10,
-    marginTop: 18,
-  },
-
-  planCard: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 0.6,
-    borderColor: "#ececec",
-  },
-
-  planCardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  planMeta: {
-    fontSize: 7,
-    color: "#777",
-  },
-
-  planArrow: {
-    fontSize: 12,
-    color: "#777",
-  },
-
-  planTitle: {
+  orbitLabel: {
+    position: 'absolute',
+    bottom: 12,
     fontSize: 8,
-    fontWeight: "700",
-    color: "#111",
-    marginTop: 4,
-    marginBottom: 6,
+    letterSpacing: 1.5,
+    color: '#888',
   },
-
-  planCardBottom: {
-    flexDirection: "row",
-    gap: 8,
+  innerRing: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 1.5,
+    borderColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-
-  planSub: {
-    fontSize: 6,
-    color: "#8d8d8d",
+  orbitLabelInner: {
+    position: 'absolute',
+    bottom: 8,
+    fontSize: 7,
+    letterSpacing: 1.5,
+    color: '#888',
   },
-
-  busyArtBox: {
-    width: 280,
-    height: 180,
-    position: "relative",
-    marginTop: 12,
-  },
-
-  spiralLarge: {
-    position: "absolute",
-    top: 8,
-    left: 2,
-    width: 66,
-    height: 66,
-    borderWidth: 4,
-    borderColor: "#111",
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  spiralLarge2: {
-    width: 42,
-    height: 42,
-    borderWidth: 4,
-    borderColor: "#111",
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  spiralLarge3: {
+  youDot: {
     width: 18,
     height: 18,
-    borderWidth: 4,
-    borderColor: "#111",
-    borderRadius: 999,
+    borderRadius: 9,
+    backgroundColor: '#222',
+  },
+  orbitDot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#444',
+  },
+  orbitDotInner: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#666',
   },
 
-  loopTopRight: {
-    position: "absolute",
-    top: 6,
-    right: 46,
-    width: 42,
-    height: 42,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderRadius: 999,
-    borderColor: "#111",
-    transform: [{ rotate: "40deg" }],
+  // Slide 3 activity rows
+  activityList: {
+    marginTop: 16,
+    gap: 2,
   },
-
-  loopBottomLeft: {
-    position: "absolute",
-    top: 96,
-    left: 30,
-    width: 30,
-    height: 30,
-    borderWidth: 3,
-    borderColor: "#111",
-    borderRadius: 999,
-    transform: [{ rotate: "18deg" }],
-  },
-
-  scribbleRight: {
-    position: "absolute",
-    top: 70,
-    right: 4,
-    width: 70,
-    height: 34,
-    borderBottomWidth: 3,
-    borderColor: "#111",
-    borderRadius: 30,
-    transform: [{ rotate: "18deg" }],
-  },
-
-  star: {
-    position: "absolute",
-    fontSize: 14,
-    color: "#555",
-  },
-
-  formSlide: {
-    width: "100%",
-    flex: 1,
-    paddingTop: 36,
-  },
-
-  formHeader: {
-    width: "100%",
-    marginBottom: 18,
-  },
-
-  formTitle: {
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "700",
-    color: "#111",
-  },
-
-  formFields: {
-    width: "100%",
-    gap: 14,
-  },
-
-  formRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
-  halfField: {
-    flex: 1,
-  },
-
-  fullField: {
-    width: "100%",
-  },
-
-  fieldLabel: {
-    fontSize: 8,
-    fontWeight: "700",
-    color: "#111",
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-
-  field: {
-    height: 34,
-    backgroundColor: "#cfcfcf",
-    borderRadius: 2,
-    paddingHorizontal: 8,
-    color: "#111",
+  activityAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E0E0E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
-
-  focusField: {
-    height: 34,
-    backgroundColor: "#cfcfcf",
-    borderRadius: 2,
-    paddingHorizontal: 8,
-    color: "#111",
-    borderWidth: 2,
-    borderColor: "#4ea1ff",
-  },
-
-  selectField: {
-    height: 34,
-    backgroundColor: "#cfcfcf",
-    borderRadius: 2,
-    paddingHorizontal: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  selectFieldText: {
-    color: "#111",
-  },
-
-  selectFieldChevron: {
+  activityAvatarText: {
     fontSize: 14,
-    color: "#888",
+    fontWeight: '600',
+    color: '#555',
   },
-
-  completeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 54,
+  activityInfo: {
+    flex: 1,
   },
-
-  completeBtnText: {
+  activityName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111',
+  },
+  activityMeta: {
     fontSize: 11,
-    color: "#111",
+    color: '#888',
+    marginTop: 2,
+  },
+  activityChevron: {
+    fontSize: 20,
+    color: '#BBB',
+  },
+  getStartedBtn: {
+    marginTop: 24,
+    alignSelf: 'flex-start',
+  },
+  getStartedText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#111',
+    paddingBottom: 2,
   },
 
-  completeBtnArrow: {
-    fontSize: 14,
-    color: "#111",
+  // Slide 4 form
+  formBlock: {
+    flex: 1,
+    paddingTop: 16,
+  },
+  formHeadline: {
+    fontFamily: FONT_SERIF,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111',
+    lineHeight: 36,
+    marginBottom: 32,
+  },
+  formRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  inputWrap: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: '#888',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  input: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#DDD',
+    paddingVertical: 6,
+    fontSize: 16,
+    color: '#111',
+  },
+  inputActive: {
+    borderBottomColor: '#111',
+  },
+  selectBox: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#DDD',
+    paddingVertical: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectPlaceholder: {
+    fontSize: 16,
+    color: '#CCC',
+  },
+  selectChevron: {
+    fontSize: 18,
+    color: '#888',
+  },
+  completeBtn: {
+    alignSelf: 'flex-end',
+    paddingBottom: 8,
+  },
+  completeBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
   },
 });
