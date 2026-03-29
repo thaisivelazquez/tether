@@ -51,14 +51,9 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   dot: {
-    width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#CCC',
-  },
-  dotActive: {
-    width: 22,
-    backgroundColor: '#111',
   },
 
   // Slide 1 doodles

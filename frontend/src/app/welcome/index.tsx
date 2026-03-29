@@ -3,11 +3,12 @@ import {
   Animated,
   FlatList,
   SafeAreaView,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from 'react-native';
 import { styles } from "../../../components/welcome/welcomestyles";
 
@@ -51,30 +52,30 @@ function Slide1() {
 
 // ─── Slide 2: Everyone in orbit ─────────────────────────────────────────────
 
-function OrbitDiagram() {
-  return (
-    <View style={styles.orbitContainer}>
-      <View style={styles.outerRing}>
-        <Text style={styles.orbitLabel}>OUTER RING</Text>
-        <View style={styles.innerRing}>
-          <Text style={styles.orbitLabelInner}>INNER RING</Text>
-          <View style={styles.youDot} />
-        </View>
-        <View style={[styles.orbitDot, { top: 30, left: '50%', marginLeft: -6 }]} />
-        <View style={[styles.orbitDot, { bottom: 30, left: '50%', marginLeft: -6 }]} />
-        <View style={[styles.orbitDot, { left: 30, top: '50%', marginTop: -6 }]} />
-        <View style={[styles.orbitDot, { right: 30, top: '50%', marginTop: -6 }]} />
-        <View style={[styles.orbitDotInner, { top: '28%', left: '28%' }]} />
-        <View style={[styles.orbitDotInner, { top: '28%', right: '28%' }]} />
-      </View>
-    </View>
-  );
-}
+// function OrbitDiagram() {
+//   return (
+//     <View style={styles.orbitContainer}>
+//       <View style={styles.outerRing}>
+//         {/* <Text style={styles.orbitLabel}>OUTER RING</Text> */}
+//         <View style={styles.innerRing}>
+//           {/* <Text style={styles.orbitLabelInner}>INNER RING</Text> */}
+//           <View style={styles.youDot} />
+//         </View>
+//         <View style={[styles.orbitDot, { top: 30, left: '50%', marginLeft: -6 }]} />
+//         <View style={[styles.orbitDot, { bottom: 30, left: '50%', marginLeft: -6 }]} />
+//         <View style={[styles.orbitDot, { left: 30, top: '50%', marginTop: -6 }]} />
+//         <View style={[styles.orbitDot, { right: 30, top: '50%', marginTop: -6 }]} />
+//         <View style={[styles.orbitDotInner, { top: '28%', left: '28%' }]} />
+//         <View style={[styles.orbitDotInner, { top: '28%', right: '28%' }]} />
+//       </View>
+//     </View>
+//   );
+// }
 
 function Slide2() {
   return (
     <View style={styles.slide}>
-      <OrbitDiagram />
+      {/* <OrbitDiagram /> */}
       <View style={styles.textBlock}>
         <Text style={styles.headline}>
           Everyone you{'\n'}care about is{'\n'}already in orbit.
@@ -233,6 +234,8 @@ export default function Welcome() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
+
       <FlatList
         data={SLIDES}
         horizontal
@@ -266,13 +269,36 @@ export default function Welcome() {
         }}
       />
 
+      {/* Animated progress dots */}
       <View style={styles.dots}>
-        {SLIDES.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === currentIndex && styles.dotActive]}
-          />
-        ))}
+        {SLIDES.map((_, i) => {
+          const dotWidth = scrollX.interpolate({
+            inputRange: [
+              (i - 1) * width,
+              i * width,
+              (i + 1) * width,
+            ],
+            outputRange: [6, 22, 6],
+            extrapolate: 'clamp',
+          });
+
+          const dotColor = scrollX.interpolate({
+            inputRange: [
+              (i - 1) * width,
+              i * width,
+              (i + 1) * width,
+            ],
+            outputRange: ['#CCC', '#111', '#CCC'],
+            extrapolate: 'clamp',
+          });
+
+          return (
+            <Animated.View
+              key={i}
+              style={[styles.dot, { width: dotWidth, backgroundColor: dotColor }]}
+            />
+          );
+        })}
       </View>
     </SafeAreaView>
   );
