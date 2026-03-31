@@ -90,6 +90,14 @@ doodleSparkleLeft: {
   height: 60,
 },
 
+circle: {
+  position: 'absolute',
+  left: 28,
+  top: 120,
+  width: 360,
+  height: 360,
+},
+
 doodleSparkleLeft1: {
   position: 'absolute',
   left: 290,

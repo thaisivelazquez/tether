@@ -81,22 +81,43 @@ function Slide1() {
 
 
 function Slide2() {
-  return (
-    <View style={styles.slide}>
-      
-      <CircleSvg style={styles.doodleSpiral} />
+   return (
+    <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
 
-
-      {/* <OrbitDiagram /> */}
-      <View style={styles.textBlock}>
-        <Text style={styles.headline}>
-          Everyone you{'\n'}care about is{'\n'}already in orbit.
+      {/* Doodles — top 55% */}
+      <View style={{ position: 'relative', width: '100%', height: '55%' }}>
+        <CircleSvg style={styles.circle} />
+      </View>
+      <View style={{
+        paddingHorizontal: 32,
+        alignItems: 'center',
+        marginTop: 280,
+      }}>
+        <Text style={{
+          width: '100%',
+          fontSize: 50,
+          fontWeight: '700',
+          color: '#111',
+          letterSpacing: -0.8,
+          marginBottom: 14,
+          textAlign: 'center',
+        }}>
+          Life gets busy.
         </Text>
-        <Text style={styles.body}>
+        <Text style={{
+          width: '100%',
+          fontSize: 28,
+          lineHeight: 26,
+          fontWeight: '700',
+          color: '#111',
+          textAlign: 'center',
+          letterSpacing: 1.2,
+        }}>
           tether helps you bring{'\n'}them into your day.{'  '}
           <Text style={{ fontSize: 16 }}>☀</Text>
         </Text>
       </View>
+
     </View>
   );
 }
