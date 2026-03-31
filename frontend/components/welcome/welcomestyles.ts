@@ -8,40 +8,42 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FAF9F6',
   },
   slide: {
-    flex: 1,
-    backgroundColor: '#FAF9F6',
-    paddingHorizontal: 28,
-    paddingTop: 40,
-    paddingBottom: 20,
-    justifyContent: 'space-between',
-  },
-
+  flex: 1,
+  backgroundColor: '#FAF9F6',
+  paddingTop: 24,
+  paddingHorizontal: 24,
+},
   // Typography
-  headline: {
-    fontFamily: FONT_SERIF,
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#111',
-    lineHeight: 42,
-    marginBottom: 12,
-  },
-  subheadline: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    lineHeight: 26,
-  },
-  body: {
-    fontSize: 16,
-    color: '#444',
-    lineHeight: 24,
-    marginTop: 8,
-  },
-  textBlock: {
-    marginTop: 32,
-    marginBottom: 16,
-  },
+headline: {
+  fontSize: 34,
+  lineHeight: 38,
+  fontWeight: '800',
+  color: '#111',
+  letterSpacing: -0.8,
+  textAlign: 'left',
+},
+body: {
+  fontSize: 16,
+  color: '#444',
+  lineHeight: 24,
+  marginTop: 8,
+  textAlign: 'left',
+},
 
+subheadline: {
+  fontSize: 17,
+  lineHeight: 22,
+  fontWeight: '700',
+  color: '#111',
+  textAlign: 'left',
+  letterSpacing: -0.2,
+},
+
+textBlock: {
+  marginTop: 28,
+  marginBottom: 16,
+  alignItems: 'flex-start',
+},
   // Dots
   dots: {
     flexDirection: 'row',
@@ -57,52 +59,79 @@ export const styles = StyleSheet.create({
   },
 
   // Slide 1 doodles
-  doodleArea: {
-    height: 220,
-    position: 'relative',
-  },
-  doodleGlyph: {
-    fontSize: 52,
-    color: '#111',
-  },
-  doodleSpiral: {
-    position: 'absolute',
-    top: 20,
-    left: 10,
-  },
-  doodleRefresh: {
-    position: 'absolute',
-    top: 10,
-    right: 40,
-    transform: [{ scaleX: -1 }],
-  },
-  doodleSparkle: {
-    fontSize: 14,
-    color: '#111',
-    lineHeight: 18,
-  },
-  doodleSparkleLeft: {
-    position: 'absolute',
-    top: 90,
-    left: 80,
-    gap: 2,
-  },
-  doodleSparkleCenter: {
-    position: 'absolute',
-    top: 100,
-    left: 160,
-    gap: 2,
-  },
-  doodleNote: {
-    position: 'absolute',
-    top: 30,
-    right: 0,
-  },
-  doodleWisp: {
-    position: 'absolute',
-    bottom: 10,
-    left: 20,
-  },
+doodleArea: {
+  position: 'relative',
+  width: '100%',
+  height: 220,
+  marginTop: 4,
+},
+
+doodleSpiral: {
+  position: 'absolute',
+  left: 50,
+  top: 10,
+  width: 192,
+  height: 92,
+},
+
+doodleRefresh: {
+  position: 'absolute',
+  right: 100,
+  bottom: 100,
+  width: 150,
+  height: 150,
+},
+
+doodleSparkleLeft: {
+  position: 'absolute',
+  left: 180,
+  top: 218,
+  width: 60,
+  height: 60,
+},
+
+doodleSparkleLeft1: {
+  position: 'absolute',
+  left: 290,
+  bottom: -135,
+  width: 60,
+  height: 60,
+},
+
+
+doodleSparkleLeft2: {
+  position: 'absolute',
+  left: 210,
+  top: 308,
+  width: 60,
+  height: 60,
+},
+
+
+
+doodleSparkleCenter: {
+  position: 'absolute',
+  right: 3,
+  top: 98,
+  width: 120,
+  height: 120,
+},
+
+doodleNote: {
+  position: 'absolute',
+  left: -30,
+  top: 180,
+  width: 180,
+  height: 180,
+},
+
+doodleWisp: {
+  position: 'absolute',
+  right: 220,
+  top: 360,
+  width: 158,
+  height: 158,
+},
 
   // Slide 2 orbit
   orbitContainer: {

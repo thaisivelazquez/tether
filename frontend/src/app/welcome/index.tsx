@@ -9,71 +9,84 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
+import Arrow11Svg from '../../../components/welcome/arrow11.svg';
+import CircleSvg from '../../../components/welcome/circle.svg';
+import ParticlePattern04Svg from '../../../components/welcome/particlepattern04.svg';
+
+import ParticlePattern041Svg from '../../../components/welcome/particlepattern041.svg';
+import ParticlePattern042Svg from '../../../components/welcome/particlepattern042.svg';
+
+
+
+import ParticlePattern13Svg from '../../../components/welcome/particlepattern13.svg';
+import ScribbleLine08Svg from '../../../components/welcome/scribbleline08.svg';
+import ScribbleLine26Svg from '../../../components/welcome/scribbleline26.svg';
 import { styles } from "../../../components/welcome/welcomestyles";
 
+// need to add the photos
 // ─── Slide 1: Life gets busy ────────────────────────────────────────────────
 
 function Slide1() {
   return (
-    <View style={styles.slide}>
-      <View style={styles.doodleArea}>
-        <View style={styles.doodleSpiral}>
-          {/* <Text style={styles.doodleGlyph}>◎</Text> */}
-        </View>
-        <View style={styles.doodleRefresh}>
-          {/* <Text style={styles.doodleGlyph}>↻</Text> */}
-        </View>
-        <View style={styles.doodleSparkleLeft}>
-          {/* <Text style={styles.doodleSparkle}>✦</Text> */}
-          {/* <Text style={[styles.doodleSparkle, { fontSize: 10 }]}>✦</Text> */}
-        </View>
-        <View style={styles.doodleSparkleCenter}>
-          {/* <Text style={styles.doodleSparkle}>✦</Text> */}
-          {/* <Text style={[styles.doodleSparkle, { fontSize: 8 }]}>✦</Text> */}
-        </View>
-        <View style={styles.doodleNote}>
-          {/* <Text style={styles.doodleGlyph}>𝄞</Text> */}
-        </View>
-        <View style={styles.doodleWisp}>
-          {/* <Text style={[styles.doodleGlyph, { fontSize: 22 }]}>꩜</Text> */}
-        </View>
-      </View>
+    <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
 
-      <View style={styles.textBlock}>
-        <Text style={styles.headline}>Life gets busy.</Text>
-        <Text style={styles.subheadline}>
+      {/* Doodles — top 55% */}
+      <View style={{ position: 'relative', width: '100%', height: '55%' }}>
+        <Arrow11Svg style={styles.doodleRefresh} />
+
+
+        <ParticlePattern04Svg style={styles.doodleSparkleLeft} />
+        <ParticlePattern041Svg style={styles.doodleSparkleLeft1} />
+        <ParticlePattern042Svg style={styles.doodleSparkleLeft2} />
+
+
+
+
+        <ParticlePattern13Svg style={styles.doodleSparkleCenter} />
+        <ScribbleLine08Svg style={styles.doodleNote} />
+        <ScribbleLine26Svg style={styles.doodleWisp} />
+      </View>
+      <View style={{
+        paddingHorizontal: 32,
+        alignItems: 'center',
+        marginTop: 280,
+      }}>
+        <Text style={{
+          width: '100%',
+          fontSize: 50,
+          fontWeight: '700',
+          color: '#111',
+          letterSpacing: -0.8,
+          marginBottom: 14,
+          textAlign: 'center',
+        }}>
+          Life gets busy.
+        </Text>
+        <Text style={{
+          width: '100%',
+          fontSize: 28,
+          lineHeight: 26,
+          fontWeight: '700',
+          color: '#111',
+          textAlign: 'center',
+          letterSpacing: 1.2,
+        }}>
           But seeing friends{'\n'}shouldn't be{'\n'}this hard.
         </Text>
       </View>
+
     </View>
   );
 }
 
-// ─── Slide 2: Everyone in orbit ─────────────────────────────────────────────
-
-// function OrbitDiagram() {
-//   return (
-//     <View style={styles.orbitContainer}>
-//       <View style={styles.outerRing}>
-//         {/* <Text style={styles.orbitLabel}>OUTER RING</Text> */}
-//         <View style={styles.innerRing}>
-//           {/* <Text style={styles.orbitLabelInner}>INNER RING</Text> */}
-//           <View style={styles.youDot} />
-//         </View>
-//         <View style={[styles.orbitDot, { top: 30, left: '50%', marginLeft: -6 }]} />
-//         <View style={[styles.orbitDot, { bottom: 30, left: '50%', marginLeft: -6 }]} />
-//         <View style={[styles.orbitDot, { left: 30, top: '50%', marginTop: -6 }]} />
-//         <View style={[styles.orbitDot, { right: 30, top: '50%', marginTop: -6 }]} />
-//         <View style={[styles.orbitDotInner, { top: '28%', left: '28%' }]} />
-//         <View style={[styles.orbitDotInner, { top: '28%', right: '28%' }]} />
-//       </View>
-//     </View>
-//   );
-// }
 
 function Slide2() {
   return (
     <View style={styles.slide}>
+      
+      <CircleSvg style={styles.doodleSpiral} />
+
+
       {/* <OrbitDiagram /> */}
       <View style={styles.textBlock}>
         <Text style={styles.headline}>
