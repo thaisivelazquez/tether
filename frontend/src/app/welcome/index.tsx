@@ -19,6 +19,22 @@ import ParticlePattern042Svg from '../../../components/welcome/particlepattern04
 import ParticlePattern13Svg from '../../../components/welcome/particlepattern13.svg';
 import ScribbleLine08Svg from '../../../components/welcome/scribbleline08.svg';
 import ScribbleLine26Svg from '../../../components/welcome/scribbleline26.svg';
+
+import Event1 from '../../../components/welcome/event1.svg';
+import Event2 from '../../../components/welcome/event2.svg';
+import Event3 from '../../../components/welcome/event3.svg';
+
+
+
+
+
+
+
+
+
+
+
+
 import { styles } from "../../../components/welcome/welcomestyles";
 
 function Slide1() {
@@ -125,24 +141,12 @@ function Slide3() {
   return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
       <View style={{ width: '100%', height: '55%', paddingHorizontal: 24, paddingTop: 24 }}>
-        <ActivityRow
-          name="John D."
-          location="studying at butler..."
-          time="1h and tnr"
-          going="20 going"
-        />
-        <ActivityRow
-          name="John D."
-          location="studying at butler..."
-          time="GPA · tomorrow"
-          going="20 going"
-        />
-        <ActivityRow
-          name="John D."
-          location="studying at butler..."
-          time="1h and tnr"
-          going="20 going"
-        />
+        <View style={{ position: 'relative', width: '100%', height: '55%' }}>
+
+          <Event1 style={styles.activityList} />
+          <Event2 style={styles.activityList} />
+          <Event3 style={styles.activityList} />
+      </View>
       </View>
 
       <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 24 }}>

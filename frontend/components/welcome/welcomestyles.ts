@@ -206,6 +206,8 @@ doodleWisp: {
   activityList: {
     marginTop: 16,
     gap: 2,
+    marginLeft: -11,
+    height : 234, 
   },
   activityRow: {
     flexDirection: 'row',
