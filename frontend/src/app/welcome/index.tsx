@@ -1,6 +1,8 @@
-import React, { useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   FlatList,
   SafeAreaView,
   StatusBar,
@@ -12,45 +14,26 @@ import {
 import Arrow11Svg from '../../../components/welcome/arrow11.svg';
 import CircleSvg from '../../../components/welcome/circle.svg';
 import ParticlePattern04Svg from '../../../components/welcome/particlepattern04.svg';
-
-import { useRouter } from 'expo-router';
 import ParticlePattern041Svg from '../../../components/welcome/particlepattern041.svg';
 import ParticlePattern042Svg from '../../../components/welcome/particlepattern042.svg';
-
-
 import ParticlePattern13Svg from '../../../components/welcome/particlepattern13.svg';
 import ScribbleLine08Svg from '../../../components/welcome/scribbleline08.svg';
 import ScribbleLine26Svg from '../../../components/welcome/scribbleline26.svg';
 import { styles } from "../../../components/welcome/welcomestyles";
 
-// need to add the photos
-// ─── Slide 1: Life gets busy ────────────────────────────────────────────────
-
 function Slide1() {
   return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
-
-      {/* Doodles — top 55% */}
       <View style={{ position: 'relative', width: '100%', height: '55%' }}>
         <Arrow11Svg style={styles.doodleRefresh} />
-
-
         <ParticlePattern04Svg style={styles.doodleSparkleLeft} />
         <ParticlePattern041Svg style={styles.doodleSparkleLeft1} />
         <ParticlePattern042Svg style={styles.doodleSparkleLeft2} />
-
-
-
-
         <ParticlePattern13Svg style={styles.doodleSparkleCenter} />
         <ScribbleLine08Svg style={styles.doodleNote} />
         <ScribbleLine26Svg style={styles.doodleWisp} />
       </View>
-      <View style={{
-        paddingHorizontal: 32,
-        alignItems: 'center',
-        marginTop: 280,
-      }}>
+      <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 280 }}>
         <Text style={{
           width: '100%',
           fontSize: 50,
@@ -74,25 +57,17 @@ function Slide1() {
           But seeing friends{'\n'}shouldn't be{'\n'}this hard.
         </Text>
       </View>
-
     </View>
   );
 }
 
-
 function Slide2() {
-   return (
+  return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
-
-      {/* Doodles — top 55% */}
       <View style={{ position: 'relative', width: '100%', height: '55%' }}>
         <CircleSvg style={styles.circle} />
       </View>
-      <View style={{
-        paddingHorizontal: 32,
-        alignItems: 'center',
-        marginTop: 280,
-      }}>
+      <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 280 }}>
         <Text style={{
           width: '100%',
           fontSize: 50,
@@ -102,7 +77,7 @@ function Slide2() {
           marginBottom: 14,
           textAlign: 'center',
         }}>
-          Life gets busy.
+          Everyone you{'\n'}care about.
         </Text>
         <Text style={{
           width: '100%',
@@ -117,12 +92,9 @@ function Slide2() {
           <Text style={{ fontSize: 16 }}>☀</Text>
         </Text>
       </View>
-
     </View>
   );
 }
-
-// ─── Slide 3: No big plans needed ───────────────────────────────────────────
 
 function ActivityRow({ name, location, time, going }: {
   name: string;
@@ -152,7 +124,6 @@ function Slide3() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
-
       <View style={{ width: '100%', height: '55%', paddingHorizontal: 24, paddingTop: 24 }}>
         <ActivityRow
           name="John D."
@@ -174,11 +145,7 @@ function Slide3() {
         />
       </View>
 
-      <View style={{
-        paddingHorizontal: 32,
-        alignItems: 'center',
-        marginTop: 24,
-      }}>
+      <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 24 }}>
         <Text style={{
           width: '100%',
           fontSize: 34,
@@ -217,161 +184,112 @@ function Slide3() {
           </Text>
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
 
-// ─── Slide 4: Tell us about yourself ────────────────────────────────────────
-
-// function Slide4() {
-//   const [firstName, setFirstName] = useState('');
-//   const [lastName, setLastName] = useState('');
-//   const [birthday, setBirthday] = useState('');
-//   const [location, setLocation] = useState('');
-//   const [affiliation, setAffiliation] = useState('');
-
-//   return (
-//     <View style={styles.slide}>
-//       <View style={styles.formBlock}>
-//         <Text style={styles.formHeadline}>
-//           one last thing—{'\n'}tell us about yourself.
-//         </Text>
-
-//         <View style={styles.formRow}>
-//           <View style={[styles.inputWrap, { flex: 1, marginRight: 8 }]}>
-//             <Text style={styles.inputLabel}>FIRST NAME</Text>
-//             <TextInput
-//               style={[styles.input, styles.inputActive]}
-//               value={firstName}
-//               onChangeText={setFirstName}
-//               placeholderTextColor="#ccc"
-//             />
-//           </View>
-//           <View style={[styles.inputWrap, { flex: 1 }]}>
-//             <Text style={styles.inputLabel}>LAST NAME</Text>
-//             <TextInput
-//               style={styles.input}
-//               value={lastName}
-//               onChangeText={setLastName}
-//               placeholderTextColor="#ccc"
-//             />
-//           </View>
-//         </View>
-
-//         <View style={styles.inputWrap}>
-//           <Text style={styles.inputLabel}>BIRTHDAY</Text>
-//           <TextInput
-//             style={styles.input}
-//             value={birthday}
-//             onChangeText={setBirthday}
-//             placeholder="DD/MM"
-//             placeholderTextColor="#aaa"
-//           />
-//         </View>
-
-//         <View style={styles.inputWrap}>
-//           <Text style={styles.inputLabel}>LOCATION</Text>
-//           <View style={styles.selectBox}>
-//             <Text style={styles.selectPlaceholder}>{location || ''}</Text>
-//             <Text style={styles.selectChevron}>⌄</Text>
-//           </View>
-//         </View>
-
-//         <View style={styles.inputWrap}>
-//           <Text style={styles.inputLabel}>AFFILIATION</Text>
-//           <View style={styles.selectBox}>
-//             <Text style={styles.selectPlaceholder}>{affiliation || ''}</Text>
-//             <Text style={styles.selectChevron}>⌄</Text>
-//           </View>
-//         </View>
-//       </View>
-
-//       <TouchableOpacity style={styles.completeBtn}>
-//         <Text style={styles.completeBtnText}>Complete sign up  →</Text>
-//       </TouchableOpacity>
-//     </View>
-//   );
-// }
-
-// ─── Carousel ────────────────────────────────────────────────────────────────
-
-// const SLIDES = [Slide1, Slide2, Slide3, Slide4];
 const SLIDES = [Slide1, Slide2, Slide3];
 
 export default function Welcome() {
   const { width } = useWindowDimensions();
   const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
+  const whiteOverlay = useRef(new Animated.Value(1)).current;
+
+  // Fade from white on mount
+  useEffect(() => {
+    Animated.timing(whiteOverlay, {
+      toValue: 0,
+      duration: 800,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
+    <View style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
 
-      <FlatList
-        data={SLIDES}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(_, i) => i.toString()}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: true }
-        )}
-        onMomentumScrollEnd={(e) => {
-          const index = Math.round(e.nativeEvent.contentOffset.x / width);
-          setCurrentIndex(index);
-        }}
-        renderItem={({ item: Slide, index }) => {
-          const inputRange = [
-            (index - 1) * width,
-            index * width,
-            (index + 1) * width,
-          ];
-          const opacity = scrollX.interpolate({
-            inputRange,
-            outputRange: [0, 1, 0],
-            extrapolate: 'clamp',
-          });
-          return (
-            <Animated.View style={{ width, opacity, flex: 1 }}>
-              <Slide />
-            </Animated.View>
-          );
+        <FlatList
+          data={SLIDES}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, i) => i.toString()}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            { useNativeDriver: true }
+          )}
+          onMomentumScrollEnd={(e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / width);
+            setCurrentIndex(index);
+          }}
+          renderItem={({ item: Slide, index }) => {
+            const inputRange = [
+              (index - 1) * width,
+              index * width,
+              (index + 1) * width,
+            ];
+            const opacity = scrollX.interpolate({
+              inputRange,
+              outputRange: [0, 1, 0],
+              extrapolate: 'clamp',
+            });
+            return (
+              <Animated.View style={{ width, opacity, flex: 1 }}>
+                <Slide />
+              </Animated.View>
+            );
+          }}
+        />
+
+        {/* Animated progress dots */}
+        <View style={styles.dots}>
+          {SLIDES.map((_, i) => {
+            const dotWidth = scrollX.interpolate({
+              inputRange: [
+                (i - 1) * width,
+                i * width,
+                (i + 1) * width,
+              ],
+              outputRange: [6, 22, 6],
+              extrapolate: 'clamp',
+            });
+
+            const dotColor = scrollX.interpolate({
+              inputRange: [
+                (i - 1) * width,
+                i * width,
+                (i + 1) * width,
+              ],
+              outputRange: ['#CCC', '#111', '#CCC'],
+              extrapolate: 'clamp',
+            });
+
+            return (
+              <Animated.View
+                key={i}
+                style={[styles.dot, { width: dotWidth, backgroundColor: dotColor }]}
+              />
+            );
+          })}
+        </View>
+      </SafeAreaView>
+
+      {/* White overlay — fades out on mount */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#FFFFFF',
+          opacity: whiteOverlay,
         }}
       />
-
-      {/* Animated progress dots */}
-      <View style={styles.dots}>
-        {SLIDES.map((_, i) => {
-          const dotWidth = scrollX.interpolate({
-            inputRange: [
-              (i - 1) * width,
-              i * width,
-              (i + 1) * width,
-            ],
-            outputRange: [6, 22, 6],
-            extrapolate: 'clamp',
-          });
-
-          const dotColor = scrollX.interpolate({
-            inputRange: [
-              (i - 1) * width,
-              i * width,
-              (i + 1) * width,
-            ],
-            outputRange: ['#CCC', '#111', '#CCC'],
-            extrapolate: 'clamp',
-          });
-
-          return (
-            <Animated.View
-              key={i}
-              style={[styles.dot, { width: dotWidth, backgroundColor: dotColor }]}
-            />
-          );
-        })}
-      </View>
-    </SafeAreaView>
+    </View>
   );
 }
