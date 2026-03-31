@@ -13,9 +13,9 @@ import Arrow11Svg from '../../../components/welcome/arrow11.svg';
 import CircleSvg from '../../../components/welcome/circle.svg';
 import ParticlePattern04Svg from '../../../components/welcome/particlepattern04.svg';
 
+import { useRouter } from 'expo-router';
 import ParticlePattern041Svg from '../../../components/welcome/particlepattern041.svg';
 import ParticlePattern042Svg from '../../../components/welcome/particlepattern042.svg';
-
 
 
 import ParticlePattern13Svg from '../../../components/welcome/particlepattern13.svg';
@@ -148,10 +148,11 @@ function ActivityRow({ name, location, time, going }: {
 }
 
 function Slide3() {
+  const router = useRouter();
+
   return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
 
-      {/* Activity list — top 55% */}
       <View style={{ width: '100%', height: '55%', paddingHorizontal: 24, paddingTop: 24 }}>
         <ActivityRow
           name="John D."
@@ -173,7 +174,6 @@ function Slide3() {
         />
       </View>
 
-      {/* Text — centered below */}
       <View style={{
         paddingHorizontal: 32,
         alignItems: 'center',
@@ -201,7 +201,10 @@ function Slide3() {
         }}>
           Just some sidequests and{'\n'}the right people.
         </Text>
-        <TouchableOpacity style={{ marginTop: 24, alignSelf: 'center' }}>
+        <TouchableOpacity
+          style={{ marginTop: 24, alignSelf: 'center' }}
+          onPress={() => router.push('/info')}
+        >
           <Text style={{
             fontSize: 16,
             fontWeight: '600',
