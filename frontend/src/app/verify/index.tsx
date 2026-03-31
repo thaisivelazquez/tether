@@ -31,13 +31,13 @@ export default function VerifyPage() {
   }>();
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const inputs = useRef<TextInput[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
 
   const maskedPhone = phone
     ? `${countryCode ?? ""} ${String(phone)}`
     : "+ XX XXX-XXX-XXXX";
 
-  // ── Carousel (identical to LoginPage) ──
   const scrollY = useRef(
     new Animated.Value(-(COUNT * ITEM_HEIGHT) + ITEM_HEIGHT)
   ).current;
@@ -68,8 +68,6 @@ export default function VerifyPage() {
 
   return (
     <SafeAreaView style={styles.root}>
-
-      {/* Decorations */}
       <View style={[styles.decoWrap, { pointerEvents: "none" }]}>
         <View style={styles.decoOuter}>
           <Svg width={scale(420)} height={scale(420)} viewBox="0 0 420 420">
@@ -93,7 +91,6 @@ export default function VerifyPage() {
         </View>
       </View>
 
-      {/* Activity feed carousel */}
       <View
         style={[
           styles.feed,
@@ -125,7 +122,6 @@ export default function VerifyPage() {
         </Animated.View>
       </View>
 
-      {/* Main content */}
       <View style={styles.verifyMain}>
         <Text style={styles.verifyTitle}>Verify your{"\n"}number</Text>
         <Text style={styles.verifySubtitle}>
@@ -136,11 +132,23 @@ export default function VerifyPage() {
           {code.map((digit, index) => (
             <View key={index} style={styles.otpBox}>
               <TextInput
+                ref={(ref) => {
+                  if (ref) inputs.current[index] = ref;
+                }}
                 value={digit}
                 onChangeText={(text) => {
+                  const value = text.slice(-1);
                   const next = [...code];
-                  next[index] = text.slice(-1);
+                  next[index] = value;
                   setCode(next);
+                  if (value && index < code.length - 1) {
+                    inputs.current[index + 1]?.focus();
+                  }
+                }}
+                onKeyPress={({ nativeEvent }) => {
+                  if (nativeEvent.key === "Backspace" && !code[index] && index > 0) {
+                    inputs.current[index - 1]?.focus();
+                  }
                 }}
                 keyboardType="number-pad"
                 maxLength={1}
@@ -157,7 +165,6 @@ export default function VerifyPage() {
 
         <Text style={styles.resendText}>Resend code in XX seconds.</Text>
       </View>
-
     </SafeAreaView>
   );
 }
