@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, useWindowDimensions, View } from "react-native";
 import { styles } from "../../../components/tut/tutstyles";
 
-// Assume these are imported correctly as React components
+
 import Slide1 from "../../../components/tut/slide1.svg";
 import Slide2 from "../../../components/tut/slide2.svg";
 import Slide3 from "../../../components/tut/slide3.svg";
@@ -27,7 +27,6 @@ export default function TutPage() {
     }
   };
 
-  // Animate opacity every time the slide changes
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
