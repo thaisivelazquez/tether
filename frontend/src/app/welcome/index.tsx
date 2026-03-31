@@ -138,7 +138,8 @@ function ActivityRow({ name, location, time, going }: {
       <View style={styles.activityInfo}>
         <Text style={styles.activityName}>{name}</Text>
         <Text style={styles.activityMeta}>
-          {location}  ·  {time}  ·  {going}
+          {location}{'  ·  '}{time}{'  ·  '}
+          <Text style={{ fontSize: 14 }}>{going}</Text>
         </Text>
       </View>
       <Text style={styles.activityChevron}>›</Text>
@@ -148,8 +149,10 @@ function ActivityRow({ name, location, time, going }: {
 
 function Slide3() {
   return (
-    <View style={styles.slide}>
-      <View style={styles.activityList}>
+    <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
+
+      {/* Activity list — top 55% */}
+      <View style={{ width: '100%', height: '55%', paddingHorizontal: 24, paddingTop: 24 }}>
         <ActivityRow
           name="John D."
           location="studying at butler..."
@@ -169,17 +172,49 @@ function Slide3() {
           going="20 going"
         />
       </View>
-      <View style={styles.textBlock}>
-        <Text style={styles.headline}>
+
+      {/* Text — centered below */}
+      <View style={{
+        paddingHorizontal: 32,
+        alignItems: 'center',
+        marginTop: 24,
+      }}>
+        <Text style={{
+          width: '100%',
+          fontSize: 34,
+          fontWeight: '800',
+          color: '#111',
+          letterSpacing: -0.8,
+          marginBottom: 14,
+          textAlign: 'center',
+        }}>
           No big plans{'\n'}needed.
         </Text>
-        <Text style={styles.subheadline}>
+        <Text style={{
+          width: '100%',
+          fontSize: 18,
+          lineHeight: 26,
+          fontWeight: '700',
+          color: '#111',
+          textAlign: 'center',
+          letterSpacing: -0.2,
+        }}>
           Just some sidequests and{'\n'}the right people.
         </Text>
-        <TouchableOpacity style={styles.getStartedBtn}>
-          <Text style={styles.getStartedText}>Get started  →</Text>
+        <TouchableOpacity style={{ marginTop: 24, alignSelf: 'center' }}>
+          <Text style={{
+            fontSize: 16,
+            fontWeight: '600',
+            color: '#111',
+            borderBottomWidth: 1.5,
+            borderBottomColor: '#111',
+            paddingBottom: 2,
+          }}>
+            Get started  →
+          </Text>
         </TouchableOpacity>
       </View>
+
     </View>
   );
 }
