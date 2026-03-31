@@ -24,17 +24,6 @@ import Event1 from '../../../components/welcome/event1.svg';
 import Event2 from '../../../components/welcome/event2.svg';
 import Event3 from '../../../components/welcome/event3.svg';
 
-
-
-
-
-
-
-
-
-
-
-
 import { styles } from "../../../components/welcome/welcomestyles";
 
 function Slide1() {
