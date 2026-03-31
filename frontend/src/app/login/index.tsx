@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -35,7 +36,10 @@ const VISIBLE = 3;
 const LOOPED = [...ACTIVITIES, ...ACTIVITIES, ...ACTIVITIES];
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [phone, setPhone] = useState<string>("");
+  const [error, setError] = useState<string>(""); // ✅ NEW
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
@@ -45,6 +49,26 @@ export default function LoginPage() {
     new Animated.Value(-(COUNT * ITEM_HEIGHT) + ITEM_HEIGHT)
   ).current;
   const currentIndex = useRef<number>(COUNT);
+
+ 
+  const isValidPhone = (num: string) => {
+    const digits = num.replace(/\D/g, "");
+    return digits.length >= 7;
+  };
+
+  const handleSubmit = () => {
+    if (!isValidPhone(phone)) {
+      setError("Please enter a valid phone number");
+      return;
+    }
+
+    setError("");
+
+    router.push({
+      pathname: "/verify",
+      params: { phone },
+    });
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -71,8 +95,7 @@ export default function LoginPage() {
 
   return (
     <SafeAreaView style={styles.root}>
-
-      {/* Decorations — full bleed, behind everything */}
+      {/* Decorations */}
       <View style={[styles.decoWrap, { pointerEvents: "none" }]}>
         <View style={styles.decoOuter}>
           <Svg width={scale(420)} height={scale(420)} viewBox="0 0 420 420">
@@ -131,7 +154,7 @@ export default function LoginPage() {
         </Animated.View>
       </View>
 
-      {/* Main content */}
+      {/* Main */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
@@ -168,16 +191,28 @@ export default function LoginPage() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 value={phone}
-                onChangeText={setPhone}
-                underlineColorAndroid="transparent"
-                placeholder=""
+                onChangeText={(text) => {
+                  setPhone(text);
+                  if (error) setError(""); // clear error while typing
+                }}
+                
               />
             </View>
           </View>
 
+          {error ? (
+            <Text style={{ color: "red", marginTop: 8, fontSize: 13 }}>
+              {error}
+            </Text>
+          ) : null}
+
           <TouchableOpacity
-            style={[styles.submitBtn, { paddingVertical: height * 0.018 }]}
-            onPress={() => {}}
+            style={[
+              styles.submitBtn,
+              { paddingVertical: height * 0.018 },
+              !isValidPhone(phone) && { opacity: 0.4 }, // ✅ disabled look
+            ]}
+            onPress={handleSubmit}
             activeOpacity={0.5}
           >
             <Text style={[styles.submitText, { fontSize: moderateScale(15) }]}>
@@ -187,7 +222,7 @@ export default function LoginPage() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Country dropdown modal */}
+   
       <Modal
         visible={dropdownOpen}
         transparent
@@ -226,7 +261,6 @@ export default function LoginPage() {
           </View>
         </TouchableOpacity>
       </Modal>
-
     </SafeAreaView>
   );
 }
