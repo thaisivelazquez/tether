@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from "react-native";
+import { Dimensions, StyleSheet } from "react-native";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const BASE_WIDTH = 390;
@@ -207,7 +207,7 @@ export const styles = StyleSheet.create({
 
   decoDotLeft: {
     position: "absolute",
-    top: SH * 0.05,
+    top: SH * 0.03,
     right: SW * 0.25,
     width: scale(62),
     height: scale(45),

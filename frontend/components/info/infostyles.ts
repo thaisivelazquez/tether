@@ -246,6 +246,7 @@ export const styles = StyleSheet.create({
   },
   inputWrap: {
     marginBottom: 20,
+    backgroundColor: '#E0E0E0'
   },
   inputLabel: {
     fontSize: 10,
@@ -256,14 +257,12 @@ export const styles = StyleSheet.create({
   },
   input: {
     borderBottomWidth: 1.5,
-    borderBottomColor: '#DDD',
+    borderBottomColor: '#010000',
     paddingVertical: 6,
     fontSize: 16,
     color: '#111',
   },
-  inputActive: {
-    borderBottomColor: '#111',
-  },
+
   selectBox: {
     borderBottomWidth: 1.5,
     borderBottomColor: '#DDD',
@@ -274,7 +273,7 @@ export const styles = StyleSheet.create({
   },
   selectPlaceholder: {
     fontSize: 16,
-    color: '#CCC',
+    color: '#d0d0d0',
   },
   selectChevron: {
     fontSize: 18,
