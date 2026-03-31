@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
   useWindowDimensions,
+  View,
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
-import { styles, scale, moderateScale } from "../../../components/login/loginstyle";
+import { moderateScale, scale, styles } from "../../../components/login/loginstyle";
 
 const ACTIVITIES = [
   "studying at butler library till nine",
