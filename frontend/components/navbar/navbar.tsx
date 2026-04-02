@@ -1,129 +1,86 @@
-import React, { useState } from "react";
+import React from 'react';
+import { Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type TabId = "home" | "circle" | "add" | "bell" | "profile";
+import AddEvent from './addevent.svg';
+import BellUnselected from './bellunselected.svg';
+import CircleiconSelected from './circleiconselected.svg';
+import CircleiconUnselected from './circleiconunselected.svg';
+import HomeiconSelected from './homeiconselected.svg';
+import HomeiconUnselected from './homeiconunselected.svg';
+import PficonSelected from './pficonselected.svg';
+import PficonUnselected from './pficonunselected.svg';
 
-interface Tab {
-  id: TabId;
-  label: string;
-  isAdd?: boolean;
-  selected?: string;
-  unselected?: string;
+export type NavTabId = 'home' | 'circle' | 'add' | 'bell' | 'profile';
+
+interface NavbarProps {
+  activeTab: NavTabId;
+  setActiveTab: (id: NavTabId) => void;
+  onAddPress: () => void;
 }
 
-const tabs: Tab[] = [
-  {
-    id: "home",
-    label: "Home",
-    selected: "/components/navbar/homeiconselected.svg",
-    unselected: "/components/navbar/homeiconunselected.svg",
-  },
-  {
-    id: "circle",
-    label: "Explore",
-    selected: "/components/navbar/circleiconselected.svg",
-    unselected: "/components/navbar/circleiconunselected.svg",
-  },
-  {
-    id: "add",
-    label: "Add",
-    isAdd: true,
-  },
-  {
-    id: "bell",
-    label: "Alerts",
-    selected: "/components/navbar/bellunselected.svg",
-    unselected: "/components/navbar/bellunselected.svg",
-  },
-  {
-    id: "profile",
-    label: "Profile",
-    selected: "/components/navbar/pficonselected.svg",
-    unselected: "/components/navbar/pficonunselected.svg",
-  },
-];
-
-export default function Navbar() {
-  const [active, setActive] = useState<TabId>("home");
+export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => {
+  const insets = useSafeAreaInsets();
 
   return (
-    <div
+    <View
       style={{
-        minHeight: "100vh",
-        background: "#f0f0f0",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        paddingBottom: "40px",
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: insets.bottom + 8,
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        backgroundColor: 'transparent',
       }}
     >
-      <nav
+      <View
         style={{
-          background: "#ffffff",
-          borderRadius: "24px",
-          boxShadow: "0 4px 30px rgba(0,0,0,0.10)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 24px",
-          width: "340px",
+          backgroundColor: '#ffffff',
+          borderRadius: 24,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 24,
+          paddingVertical: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 16,
+          elevation: 8,
         }}
       >
-        {tabs.map((tab) => {
-          if (tab.isAdd) {
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActive(tab.id)}
-                aria-label="Add"
-                style={{
-                  background: "#e8e4ff",
-                  border: "none",
-                  borderRadius: "50%",
-                  width: "52px",
-                  height: "52px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  transition: "transform 0.15s",
-                  transform: active === tab.id ? "scale(1.08)" : "scale(1)",
-                  outline: "none",
-                  flexShrink: 0,
-                }}
-              >
-                <img src="/components/navbar/addevent.svg" alt="Add" width={26} height={26} />
-              </button>
-            );
-          }
+        <Pressable onPress={() => setActiveTab('home')} style={{ padding: 6 }}>
+          {activeTab === 'home' ? <HomeiconSelected /> : <HomeiconUnselected />}
+        </Pressable>
 
-          const isActive = active === tab.id;
-          const src = isActive ? tab.selected! : tab.unselected!;
+        <Pressable onPress={() => setActiveTab('circle')} style={{ padding: 6 }}>
+          {activeTab === 'circle' ? <CircleiconSelected /> : <CircleiconUnselected />}
+        </Pressable>
 
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActive(tab.id)}
-              aria-label={tab.label}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "6px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "12px",
-                transition: "transform 0.15s",
-                transform: isActive ? "scale(1.1)" : "scale(1)",
-                outline: "none",
-                flexShrink: 0,
-              }}
-            >
-              <img src={src} alt={tab.label} width={24} height={24} />
-            </button>
-          );
-        })}
-      </nav>
-    </div>
+        <Pressable
+          onPress={onAddPress}
+          style={{
+            backgroundColor: '#e8e4ff',
+            borderRadius: 999,
+            width: 52,
+            height: 52,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <AddEvent />
+        </Pressable>
+
+        <Pressable onPress={() => setActiveTab('bell')} style={{ padding: 6 }}>
+          <BellUnselected />
+        </Pressable>
+
+        <Pressable onPress={() => setActiveTab('profile')} style={{ padding: 6 }}>
+          {activeTab === 'profile' ? <PficonSelected /> : <PficonUnselected />}
+        </Pressable>
+      </View>
+    </View>
   );
-}
+};

@@ -1,20 +1,33 @@
 import { useRouter } from 'expo-router';
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, FlatList, Pressable, SafeAreaView, Text, View } from 'react-native';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Allbutton from '../../../components/homepage/allbuttons.svg';
 import Closefriendsbutton from '../../../components/homepage/closefriendsbutton.svg';
 import { styles } from '../../../components/homepage/homepagestyles';
-import AddEvent from '../../../components/navbar/addevent.svg';
-import BellUnselected from '../../../components/navbar/bellunselected.svg';
-import CircleiconSelected from '../../../components/navbar/circleiconselected.svg';
-import CircleiconUnselected from '../../../components/navbar/circleiconunselected.svg';
-import HomeiconSelected from '../../../components/navbar/homeiconselected.svg';
-import HomeiconUnselected from '../../../components/navbar/homeiconunselected.svg';
-import PficonSelected from '../../../components/navbar/pficonselected.svg';
-import PficonUnselected from '../../../components/navbar/pficonunselected.svg';
+import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import { SidequestCard } from '../../../components/sidequest/sidequestcard';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
+const DISMISS_THRESHOLD = 120;
 
 /** -------------------------------
  * Types
@@ -85,12 +98,26 @@ const mockSidequests: Sidequest[] = [
 /** -------------------------------
  * AppContext
  * ------------------------------- */
-type AppContextValue = { sidequests: Sidequest[] };
+type AppContextValue = {
+  sidequests: Sidequest[];
+  addSidequest: (s: Sidequest) => void;
+};
 const AppContext = createContext<AppContextValue | null>(null);
 
-const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [sidequests] = useState<Sidequest[]>(mockSidequests);
-  return <AppContext.Provider value={{ sidequests }}>{children}</AppContext.Provider>;
+const AppProvider = ({
+  children,
+  sidequests,
+  addSidequest,
+}: {
+  children: ReactNode;
+  sidequests: Sidequest[];
+  addSidequest: (s: Sidequest) => void;
+}) => {
+  return (
+    <AppContext.Provider value={{ sidequests, addSidequest }}>
+      {children}
+    </AppContext.Provider>
+  );
 };
 
 const useApp = () => {
@@ -100,75 +127,201 @@ const useApp = () => {
 };
 
 /** -------------------------------
- * Navbar
+ * Add Sidequest Sheet
  * ------------------------------- */
-type NavTabId = 'home' | 'circle' | 'add' | 'bell' | 'profile';
-
-const BottomNavbar = ({ activeTab, setActiveTab }: { activeTab: NavTabId; setActiveTab: (id: NavTabId) => void }) => {
+function AddSidequestSheet({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
   const insets = useSafeAreaInsets();
+  const { addSidequest } = useApp();
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+
+  const [title, setTitle] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [fromTime, setFromTime] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [toTime, setToTime] = useState('');
+  const [location, setLocation] = useState('');
+  const [detail, setDetail] = useState('');
+  const [maxAtt, setMaxAtt] = useState('1');
+  const [vis, setVis] = useState<'everyone' | 'close-friends'>('close-friends');
+  const [openVis, setOpenVis] = useState(false);
+
+  useEffect(() => {
+    Animated.spring(translateY, {
+      toValue: visible ? 0 : SHEET_HEIGHT,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  }, [visible]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderMove: (_, { dy }) => {
+        if (dy > 0) translateY.setValue(dy);
+      },
+      onPanResponderRelease: (_, { dy, vy }) => {
+        if (dy > DISMISS_THRESHOLD || vy > 1.5) {
+          Animated.timing(translateY, {
+            toValue: SHEET_HEIGHT,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(onClose);
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  function handleSubmit() {
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    start.setHours(15, 0, 0, 0);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+
+    const newSidequest: Sidequest = {
+      id: `sq-${Date.now()}`,
+      title: title.trim() || 'share what you are up to',
+      description: detail.trim() || 'Tell your friends what to expect.',
+      visibility: vis,
+      postedBy: mockUsers[0],
+      attendees: [],
+      createdAt: new Date().toISOString(),
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      location: location.trim() || 'Columbia University area',
+      maxAttendees: Math.max(1, parseInt(maxAtt, 10) || 1),
+    };
+
+    addSidequest(newSidequest);
+
+    setTitle(''); setFromDate(''); setFromTime('');
+    setToDate(''); setToTime(''); setLocation('');
+    setDetail(''); setMaxAtt('1'); setVis('close-friends');
+    setOpenVis(false);
+    onClose();
+  }
 
   return (
-    <View
-      style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingBottom: insets.bottom + 8,
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        backgroundColor: 'transparent',
-      }}
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <View
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: 24,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 24,
-          paddingVertical: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 16,
-          elevation: 8,
-        }}
+      <Pressable style={sheet.backdrop} onPress={onClose} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={sheet.kavWrapper}
+        pointerEvents="box-none"
       >
-        <Pressable onPress={() => setActiveTab('home')} style={{ padding: 6 }}>
-          {activeTab === 'home' ? <HomeiconSelected /> : <HomeiconUnselected />}
-        </Pressable>
-
-        <Pressable onPress={() => setActiveTab('circle')} style={{ padding: 6 }}>
-          {activeTab === 'circle' ? <CircleiconSelected /> : <CircleiconUnselected />}
-        </Pressable>
-
-        <Pressable
-          onPress={() => setActiveTab('add')}
-          style={{
-            backgroundColor: '#e8e4ff',
-            borderRadius: 999,
-            width: 52,
-            height: 52,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+        <Animated.View
+          style={[
+            sheet.sheetContainer,
+            { paddingBottom: insets.bottom + 16 },
+            { transform: [{ translateY }] },
+          ]}
         >
-          <AddEvent />
-        </Pressable>
+          <View {...panResponder.panHandlers} style={sheet.handleArea}>
+            <View style={sheet.handle} />
+          </View>
 
-        <Pressable onPress={() => setActiveTab('bell')} style={{ padding: 6 }}>
-          <BellUnselected />
-        </Pressable>
+          <Text style={sheet.dragLabel}>CREATE SIDEQUEST</Text>
 
-        <Pressable onPress={() => setActiveTab('profile')} style={{ padding: 6 }}>
-          {activeTab === 'profile' ? <PficonSelected /> : <PficonUnselected />}
-        </Pressable>
-      </View>
-    </View>
+          <ScrollView
+            style={sheet.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          >
+            <TextInput
+              style={sheet.bigInput}
+              placeholder="share what you're up to..."
+              placeholderTextColor="#666"
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <Text style={sheet.lab}>FROM</Text>
+            <View style={sheet.row}>
+              <TextInput style={sheet.pill} placeholder="date" placeholderTextColor="#666" value={fromDate} onChangeText={setFromDate} />
+              <TextInput style={sheet.pill} placeholder="time" placeholderTextColor="#666" value={fromTime} onChangeText={setFromTime} />
+            </View>
+
+            <Text style={sheet.lab}>TO</Text>
+            <View style={sheet.row}>
+              <TextInput style={sheet.pill} placeholder="date" placeholderTextColor="#666" value={toDate} onChangeText={setToDate} />
+              <TextInput style={sheet.pill} placeholder="time" placeholderTextColor="#666" value={toTime} onChangeText={setToTime} />
+            </View>
+
+            <TextInput
+              style={sheet.input}
+              placeholder="📍 location"
+              placeholderTextColor="#666"
+              value={location}
+              onChangeText={setLocation}
+            />
+
+            <TextInput
+              style={[sheet.input, sheet.multiline]}
+              placeholder="TELL YOUR FRIENDS WHAT TO EXPECT..."
+              placeholderTextColor="#666"
+              value={detail}
+              onChangeText={setDetail}
+              multiline
+            />
+
+            <Text style={sheet.lab}>MAX ATTENDEES</Text>
+            <TextInput
+              style={sheet.input}
+              keyboardType="number-pad"
+              placeholderTextColor="#666"
+              value={maxAtt}
+              onChangeText={setMaxAtt}
+            />
+
+            <Text style={sheet.lab}>VISIBILITY</Text>
+            <Pressable style={sheet.input} onPress={() => setOpenVis((v) => !v)}>
+              <Text style={{ color: '#fff' }}>
+                {vis === 'everyone' ? 'Everyone' : 'Close Friends'}
+              </Text>
+            </Pressable>
+            {openVis && (
+              <View style={sheet.dropdown}>
+                <Pressable onPress={() => { setVis('close-friends'); setOpenVis(false); }} style={sheet.opt}>
+                  <Text style={sheet.optText}>Close Friends</Text>
+                </Pressable>
+                <Pressable onPress={() => { setVis('everyone'); setOpenVis(false); }} style={sheet.opt}>
+                  <Text style={sheet.optText}>Everyone</Text>
+                </Pressable>
+              </View>
+            )}
+
+            <Pressable
+              onPress={handleSubmit}
+              style={({ pressed }) => [sheet.submitBtn, pressed && { opacity: 0.75 }]}
+            >
+              <Text style={sheet.submitText}>share →</Text>
+            </Pressable>
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
-};
+}
 
 /** -------------------------------
  * Homepage
@@ -179,9 +332,16 @@ export default function HomePage() {
   const whiteOverlay = useRef(new Animated.Value(1)).current;
   const [filter, setFilter] = useState<'all' | 'close-friends'>('all');
   const [activeTab, setActiveTab] = useState<NavTabId>('home');
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const [sidequests, setSidequests] = useState<Sidequest[]>(mockSidequests);
+
+  const addSidequest = useCallback((newSidequest: Sidequest) => {
+    setSidequests((prev) => [newSidequest, ...prev]);
+  }, []);
 
   return (
-    <AppProvider>
+    <AppProvider sidequests={sidequests} addSidequest={addSidequest}>
       <InnerHomePage
         filter={filter}
         setFilter={setFilter}
@@ -190,12 +350,24 @@ export default function HomePage() {
         router={router}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        sheetOpen={sheetOpen}
+        setSheetOpen={setSheetOpen}
       />
     </AppProvider>
   );
 }
 
-const InnerHomePage = ({ filter, setFilter, whiteOverlay, insets, router, activeTab, setActiveTab }: any) => {
+const InnerHomePage = ({
+  filter,
+  setFilter,
+  whiteOverlay,
+  insets,
+  router,
+  activeTab,
+  setActiveTab,
+  sheetOpen,
+  setSheetOpen,
+}: any) => {
   const { sidequests } = useApp();
 
   const data = useMemo(() => {
@@ -250,16 +422,23 @@ const InnerHomePage = ({ filter, setFilter, whiteOverlay, insets, router, active
         </View>
       </SafeAreaView>
 
-      <BottomNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <AddSidequestSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+      />
+
+      {/* ✅ Clean single import from navbar/navbar */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onAddPress={() => setSheetOpen(true)}
+      />
 
       <Animated.View
         pointerEvents="none"
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: '#FFFFFF',
           opacity: whiteOverlay,
         }}
@@ -267,3 +446,106 @@ const InnerHomePage = ({ filter, setFilter, whiteOverlay, insets, router, active
     </View>
   );
 };
+
+/** -------------------------------
+ * Sheet Styles
+ * ------------------------------- */
+const sheet = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  kavWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    height: SHEET_HEIGHT,
+    backgroundColor: '#111',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  handleArea: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#444',
+  },
+  dragLabel: {
+    textAlign: 'center',
+    color: '#888',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  scroll: { flex: 1 },
+  bigInput: {
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 12,
+    padding: 14,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  lab: {
+    color: '#888',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  pill: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 999,
+    padding: 10,
+    color: '#fff',
+    fontSize: 14,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 12,
+    padding: 12,
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  multiline: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  dropdown: {
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  opt: { paddingVertical: 10 },
+  optText: { color: '#fff', fontSize: 14 },
+  submitBtn: {
+    backgroundColor: '#4f46e5',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  submitText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
