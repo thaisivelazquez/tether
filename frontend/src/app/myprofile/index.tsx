@@ -490,7 +490,7 @@ const InnerProfilePage = ({
           <View style={styles.topBar}>
             <View style={{ width: 28 }} />
             <Pressable
-              onPress={() => router.push('/profile/edit')}
+              onPress={() => router.push('/myprofile/edit')}
               style={styles.editIconWrap}
             >
               <EditButton width={22} height={22} />
