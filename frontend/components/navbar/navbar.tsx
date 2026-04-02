@@ -1,3 +1,4 @@
+import { Href, useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,38 @@ interface NavbarProps {
 
 export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const handleTabPress = (tab: NavTabId) => {
+    setActiveTab(tab);
+
+    let route: Href | null = null;
+
+    switch (tab) {
+      case 'home':
+        route = '/homepage';
+        break;
+      case 'circle':
+        route = '/circle';
+        break;
+      case 'bell':
+        route = null;
+        break;
+      case 'profile':
+        route = '/myprofile';
+        break;
+      case 'add':
+        route = null;
+        break;
+      default:
+        route = null;
+        break;
+    }
+
+    if (route) {
+      router.push(route);
+    }
+  };
 
   return (
     <View
@@ -51,11 +84,11 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
           elevation: 8,
         }}
       >
-        <Pressable onPress={() => setActiveTab('home')} style={{ padding: 6 }}>
+        <Pressable onPress={() => handleTabPress('home')} style={{ padding: 6 }}>
           {activeTab === 'home' ? <HomeiconSelected /> : <HomeiconUnselected />}
         </Pressable>
 
-        <Pressable onPress={() => setActiveTab('circle')} style={{ padding: 6 }}>
+        <Pressable onPress={() => handleTabPress('circle')} style={{ padding: 6 }}>
           {activeTab === 'circle' ? <CircleiconSelected /> : <CircleiconUnselected />}
         </Pressable>
 
@@ -73,11 +106,11 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
           <AddEvent />
         </Pressable>
 
-        <Pressable onPress={() => setActiveTab('bell')} style={{ padding: 6 }}>
+        <Pressable onPress={() => handleTabPress('bell')} style={{ padding: 6 }}>
           <BellUnselected />
         </Pressable>
 
-        <Pressable onPress={() => setActiveTab('profile')} style={{ padding: 6 }}>
+        <Pressable onPress={() => handleTabPress('profile')} style={{ padding: 6 }}>
           {activeTab === 'profile' ? <PficonSelected /> : <PficonUnselected />}
         </Pressable>
       </View>
