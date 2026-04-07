@@ -23,22 +23,22 @@
 const router = require("express").Router();
 const pool = require("../db");
 const { v4: uuidv4 } = require("uuid");
- 
-// Create new user (called from tutorial completion)
+
+
 router.post("/create", async (req, res) => {
   const { phone, countryCode = "+1", firstName, lastName } = req.body;
- 
+
   if (!phone || !firstName || !lastName) {
     return res
       .status(400)
       .json({ error: "phone, firstName, and lastName are required." });
   }
- 
+
   const digits = String(phone).replace(/\D/g, "");
   const fullNumber = `${countryCode}${digits}`;
- 
+
   try {
-    // Guard against duplicates (shouldn't happen but safety first)
+
     const existing = await pool.query(
       "SELECT id FROM users WHERE phone = $1",
       [fullNumber]
@@ -46,7 +46,7 @@ router.post("/create", async (req, res) => {
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: "User already exists." });
     }
- 
+
     const id = uuidv4();
     const { rows } = await pool.query(
       `INSERT INTO users (id, phone, first_name, last_name, date_signed_up, last_used, number_of_events)
@@ -54,15 +54,15 @@ router.post("/create", async (req, res) => {
        RETURNING *`,
       [id, fullNumber, firstName.trim(), lastName.trim()]
     );
- 
+
     return res.status(201).json({ user: rows[0] });
   } catch (err) {
     console.error("DB error:", err.message);
     return res.status(500).json({ error: "Server error. Please try again." });
   }
 });
- 
-// Get user by ID
+
+
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
@@ -79,5 +79,23 @@ router.get("/:id", async (req, res) => {
     return res.status(500).json({ error: "Server error." });
   }
 });
- 
+
+
+router.get("/by-phone/:phone", async (req, res) => {
+  const { phone } = req.params;
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM users WHERE phone = $1",
+      [phone]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    return res.json({ user: rows[0] });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
 module.exports = router;
