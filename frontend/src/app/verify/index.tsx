@@ -1,6 +1,7 @@
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   SafeAreaView,
   Text,
@@ -29,8 +30,11 @@ export default function VerifyPage() {
     phone?: string;
     countryCode?: string;
   }>();
+  const router = useRouter(); // <-- fixed here
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const inputs = useRef<TextInput[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
 
@@ -65,6 +69,43 @@ export default function VerifyPage() {
 
     return () => clearInterval(interval);
   }, [scrollY]);
+
+  const handleVerify = async () => {
+    const otp = code.join("");
+    if (otp.length < 6) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:3000/verify/check-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone,
+          countryCode: countryCode ?? "+1",
+          otp,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Invalid code.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === "existing_user") {
+        router.replace("/homepage");
+      } else {
+        router.replace("/tut");
+      }
+    } catch (err) {
+      setError("Could not reach server.");
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -159,8 +200,19 @@ export default function VerifyPage() {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.verifyContinueBtn} activeOpacity={0.7}>
-          <Text style={styles.verifyContinueText}>continue →</Text>
+        {error ? <Text style={{ color: "red", marginTop: 8 }}>{error}</Text> : null}
+
+        <TouchableOpacity
+          style={styles.verifyContinueBtn}
+          activeOpacity={0.7}
+          onPress={handleVerify}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.verifyContinueText}>continue →</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.resendText}>Resend code in XX seconds.</Text>

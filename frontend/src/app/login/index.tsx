@@ -56,19 +56,40 @@ export default function LoginPage() {
     return digits.length >= 7;
   };
 
-  const handleSubmit = () => {
-    if (!isValidPhone(phone)) {
-      setError("Please enter a valid phone number");
+const handleSubmit = async () => {
+  if (!isValidPhone(phone)) {
+    setError("Please enter a valid phone number");
+    return;
+  }
+
+  setError("");
+
+  try {
+    const res = await fetch("http://localhost:3000/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone,
+        countryCode: selectedCountry.code,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || "Failed to send code.");
       return;
     }
 
-    setError("");
-
+    // OTP sent successfully, go to verify page
     router.push({
       pathname: "/verify",
-      params: { phone },
+      params: { phone, countryCode: selectedCountry.code },
     });
-  };
+  } catch (err) {
+    setError("Could not reach server. Is it running?");
+  }
+};
 
   useEffect(() => {
     const interval = setInterval(() => {
