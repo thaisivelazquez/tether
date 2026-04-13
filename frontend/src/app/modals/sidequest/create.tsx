@@ -77,121 +77,124 @@ const submit = async () => {
 };
 
   return (
-    <ScrollView
-      style={[styles.flex, { backgroundColor: '#111' }]}
-      contentContainerStyle={{
-        paddingBottom: insets.bottom + 32,
-        paddingHorizontal: 16,
-      }}
-    >
-      {/* Drag handle */}
-      <View style={styles.handle} />
+  <ScrollView
+    style={[styles.flex, { backgroundColor: '#111' }]}
+    contentContainerStyle={{
+      paddingBottom: insets.bottom + 120, 
+      paddingHorizontal: 16,
+    }}
+    keyboardShouldPersistTaps="handled"
+  >
+    {/* Drag handle */}
+    <View style={styles.handle} />
+
+    <Text style={styles.dragLabel}>CREATE SIDEQUEST</Text>
+
+    <TextInput
+      style={styles.bigInput}
+      placeholder="share what you're up to..."
+      placeholderTextColor="#666"
+      value={title}
+      onChangeText={setTitle}
+    />
+
+    <Text style={styles.lab}>FROM</Text>
+    <View style={styles.row}>
+      <TextInput
+        style={styles.pill}
+        placeholder="date"
+        placeholderTextColor="#666"
+        value={fromDate}
+        onChangeText={setFromDate}
+      />
+      <TextInput
+        style={styles.pill}
+        placeholder="time"
+        placeholderTextColor="#666"
+        value={fromTime}
+        onChangeText={setFromTime}
+      />
+    </View>
+
+    <Text style={styles.lab}>TO</Text>
+    <View style={styles.row}>
+      <TextInput
+        style={styles.pill}
+        placeholder="date"
+        placeholderTextColor="#666"
+        value={toDate}
+        onChangeText={setToDate}
+      />
+      <TextInput
+        style={styles.pill}
+        placeholder="time"
+        placeholderTextColor="#666"
+        value={toTime}
+        onChangeText={setToTime}
+      />
+    </View>
+
+    <TextInput
+      style={styles.input}
+      placeholder="📍 location"
+      placeholderTextColor="#666"
+      value={location}
+      onChangeText={setLocation}
+    />
+
+    <TextInput
+      style={[styles.input, styles.multiline]}
+      placeholder="TELL YOUR FRIENDS WHAT TO EXPECT..."
+      placeholderTextColor="#666"
+      value={detail}
+      onChangeText={setDetail}
+      multiline
+    />
+
+    <Text style={styles.lab}>MAX ATTENDEES</Text>
+    <TextInput
+      style={styles.input}
+      keyboardType="number-pad"
+      placeholderTextColor="#666"
+      value={maxAtt}
+      onChangeText={setMaxAtt}
+    />
+
+    <Text style={styles.lab}>VISIBILITY</Text>
+    <Pressable style={styles.input} onPress={() => setOpenVis((v) => !v)}>
+      <Text style={{ color: '#fff' }}>
+        {vis === 'everyone' ? 'Everyone' : 'Close Friends'}
+      </Text>
+    </Pressable>
+
+    {openVis && (
+      <View style={styles.dropdown}>
+        <Pressable
+          onPress={() => { setVis('close-friends'); setOpenVis(false); }}
+          style={styles.opt}
+        >
+          <Text style={styles.optText}>Close Friends</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => { setVis('everyone'); setOpenVis(false); }}
+          style={styles.opt}
+        >
+          <Text style={styles.optText}>Everyone</Text>
+        </Pressable>
+      </View>
+    )}
+
+    
+    <View style={{ marginTop: 24 }}>
       <Pressable
         onPress={submit}
         style={({ pressed }) => [styles.btn, pressed && { opacity: 0.75 }]}
       >
         <Text style={styles.btnText}>share →</Text>
       </Pressable>
-
-      {/* <Text style={styles.dragLabel}>CREATE SIDEQUEST</Text> */}
-
-      <TextInput
-        style={styles.bigInput}
-        placeholder="share what you're up to..."
-        placeholderTextColor="#666"
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      <Text style={styles.lab}>FROM</Text>
-      <View style={styles.row}>
-        <TextInput
-          style={styles.pill}
-          placeholder="date"
-          placeholderTextColor="#666"
-          value={fromDate}
-          onChangeText={setFromDate}
-        />
-        <TextInput
-          style={styles.pill}
-          placeholder="time"
-          placeholderTextColor="#666"
-          value={fromTime}
-          onChangeText={setFromTime}
-        />
-      </View>
-
-      <Text style={styles.lab}>TO</Text>
-      <View style={styles.row}>
-        <TextInput
-          style={styles.pill}
-          placeholder="date"
-          placeholderTextColor="#666"
-          value={toDate}
-          onChangeText={setToDate}
-        />
-        <TextInput
-          style={styles.pill}
-          placeholder="time"
-          placeholderTextColor="#666"
-          value={toTime}
-          onChangeText={setToTime}
-        />
-      </View>
-
-      <TextInput
-        style={styles.input}
-        placeholder="📍 location"
-        placeholderTextColor="#666"
-        value={location}
-        onChangeText={setLocation}
-      />
-
-      <TextInput
-        style={[styles.input, styles.multiline]}
-        placeholder="TELL YOUR FRIENDS WHAT TO EXPECT..."
-        placeholderTextColor="#666"
-        value={detail}
-        onChangeText={setDetail}
-        multiline
-      />
-
-      <Text style={styles.lab}>MAX ATTENDEES</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="number-pad"
-        placeholderTextColor="#666"
-        value={maxAtt}
-        onChangeText={setMaxAtt}
-      />
-
-      <Text style={styles.lab}>VISIBILITY</Text>
-      <Pressable style={styles.input} onPress={() => setOpenVis((v) => !v)}>
-        <Text style={{ color: '#fff' }}>
-          {vis === 'everyone' ? 'Everyone' : 'Close Friends'}
-        </Text>
-      </Pressable>
-      {openVis && (
-        <View style={styles.dropdown}>
-          <Pressable
-            onPress={() => { setVis('close-friends'); setOpenVis(false); }}
-            style={styles.opt}
-          >
-            <Text style={styles.optText}>Close Friends</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setVis('everyone'); setOpenVis(false); }}
-            style={styles.opt}
-          >
-            <Text style={styles.optText}>Everyone</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Submit button */}
-      
-    </ScrollView>
-  );
+    </View>
+  </ScrollView>
+);
 }
 
 const styles = StyleSheet.create({
