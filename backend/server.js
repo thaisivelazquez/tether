@@ -28,8 +28,15 @@ const cors = require("cors"); // ✅ import CORS
 const app = express();
 
 // Enable CORS for all origins (for development)
-app.use(cors());
+app.use(cors({
+  origin: "*", // Allows all origins (Expo Web, Mobile, etc.)
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
 
+// Important: Handle OPTIONS globally just in case
+app.options("*", cors());
 // Parse JSON bodies
 app.use(express.json());
 
@@ -37,6 +44,7 @@ app.use(express.json());
 app.use("/auth", require("./routes/auth"));
 app.use("/verify", require("./routes/verify"));
 app.use("/users", require("./routes/users"));
+app.use("/events", require("./routes/sidequest"));
 
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));

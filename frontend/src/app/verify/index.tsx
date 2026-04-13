@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { moderateScale, scale, styles } from "../../../components/verify/verifystyle";
+
 
 const ACTIVITIES = [
   "studying at butler library till nine",
@@ -94,6 +96,11 @@ export default function VerifyPage() {
         setError(data.error || "Invalid code.");
         setLoading(false);
         return;
+      }
+
+      if (data.user && data.user.id) {
+        await AsyncStorage.setItem('user_id', data.user.id);
+        //await SecureStore.setItemAsync("user_id", data.user.id);
       }
 
       if (data.status === "existing_user") {

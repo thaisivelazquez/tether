@@ -24,7 +24,11 @@ const router = require("express").Router();
 const pool = require("../db");
 const { v4: uuidv4 } = require("uuid");
 
-
+// ------------------------------------
+// Create new user (called from tutorial completion)
+// POST /users/create
+// Body: { phone, countryCode, firstName, lastName }
+// ------------------------------------
 router.post("/create", async (req, res) => {
   const { phone, countryCode = "+1", firstName, lastName } = req.body;
 
@@ -35,10 +39,10 @@ router.post("/create", async (req, res) => {
   }
 
   const digits = String(phone).replace(/\D/g, "");
-  const fullNumber = `${countryCode}${digits}`;
+  const fullNumber = phone.startsWith("+") ? phone : `${countryCode}${digits}`;
 
   try {
-
+    // Guard against duplicates
     const existing = await pool.query(
       "SELECT id FROM users WHERE phone = $1",
       [fullNumber]
@@ -49,7 +53,8 @@ router.post("/create", async (req, res) => {
 
     const id = uuidv4();
     const { rows } = await pool.query(
-      `INSERT INTO users (id, phone, first_name, last_name, date_signed_up, last_used, number_of_events)
+      `INSERT INTO users 
+       (id, phone, first_name, last_name, date_signed_up, last_used, number_of_events)
        VALUES ($1, $2, $3, $4, NOW(), NOW(), 0)
        RETURNING *`,
       [id, fullNumber, firstName.trim(), lastName.trim()]
@@ -62,7 +67,10 @@ router.post("/create", async (req, res) => {
   }
 });
 
-
+// ------------------------------------
+// Get user by ID
+// GET /users/:id
+// ------------------------------------
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
@@ -80,17 +88,53 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
+// ------------------------------------
+// Get user by phone
+// GET /users/by-phone/:phone
+// ------------------------------------
 router.get("/by-phone/:phone", async (req, res) => {
   const { phone } = req.params;
+  if (!phone) return res.status(400).json({ error: "Phone number is required." });
+
+  const normalizedPhone = phone.replace(/\D/g, "");
   try {
     const { rows } = await pool.query(
-      "SELECT * FROM users WHERE phone = $1",
-      [phone]
+      "SELECT * FROM users WHERE phone LIKE $1",
+      [`%${normalizedPhone}`] // flexible match
     );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "User not found." });
-    }
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+    return res.json({ user: rows[0] });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
+// ------------------------------------
+// Update user info
+// PATCH /users/:id
+// Body: { first_name, last_name, birthdate, location, affiliation }
+// ------------------------------------
+router.patch("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { first_name, last_name, birthdate, location, affiliation } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users
+       SET first_name = $1,
+           last_name = $2,
+           birthdate = $3,
+           location = $4,
+           affiliation = $5,
+           last_used = NOW()
+       WHERE id = $6
+       RETURNING *`,
+      [first_name, last_name, birthdate, location, affiliation, id]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+
     return res.json({ user: rows[0] });
   } catch (err) {
     console.error("DB error:", err.message);
@@ -99,3 +143,8 @@ router.get("/by-phone/:phone", async (req, res) => {
 });
 
 module.exports = router;
+
+
+
+// DELETE FROM users
+// WHERE phone = "+13475448544";
