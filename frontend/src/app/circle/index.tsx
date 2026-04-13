@@ -1,24 +1,22 @@
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Easing,
-    KeyboardAvoidingView,
-    Modal,
-    PanResponder,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Animated,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
+import CreateSidequestForm from '../modals/sidequest/create';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -134,8 +132,6 @@ const mockSidequests: Sidequest[] = [
 
 const AVATAR_COLORS = ['#d9d9d9', '#d4c5f9', '#c5e8f9', '#c5f9d4', '#f9d4c5', '#f9f0c5'];
 
-const dist = (x: number, y: number) => Math.sqrt(x * x + y * y);
-
 const clampToOrbit = (x: number, y: number) => {
   const d = Math.sqrt(x * x + y * y);
   if (d === 0) return { x: 0, y: 0 };
@@ -165,27 +161,17 @@ const polarToXY = (angle: number, radius: number) => ({
   y: Math.sin(angle) * radius,
 });
 
+/** -------------------------------
+ * Shared Bottom Sheet (same as Profile)
+ * ------------------------------- */
 function AddSidequestSheet({
   visible,
   onClose,
-  onAdd,
 }: {
   visible: boolean;
   onClose: () => void;
-  onAdd: (s: Sidequest) => void;
 }) {
-  const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const [title, setTitle] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [fromTime, setFromTime] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [toTime, setToTime] = useState('');
-  const [location, setLocation] = useState('');
-  const [detail, setDetail] = useState('');
-  const [maxAtt, setMaxAtt] = useState('1');
-  const [vis, setVis] = useState<'everyone' | 'close-friends'>('close-friends');
-  const [openVis, setOpenVis] = useState(false);
 
   React.useEffect(() => {
     Animated.spring(translateY, {
@@ -193,12 +179,12 @@ function AddSidequestSheet({
       useNativeDriver: true,
       bounciness: 4,
     }).start();
-  }, [visible, translateY]);
+  }, [visible]);
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
       onPanResponderMove: (_, { dy }) => {
         if (dy > 0) translateY.setValue(dy);
       },
@@ -206,9 +192,8 @@ function AddSidequestSheet({
         if (dy > DISMISS_THRESHOLD || vy > 1.5) {
           Animated.timing(translateY, {
             toValue: SHEET_HEIGHT,
-            duration: 220,
+            duration: 250,
             useNativeDriver: true,
-            easing: Easing.out(Easing.cubic),
           }).start(onClose);
         } else {
           Animated.spring(translateY, {
@@ -221,89 +206,15 @@ function AddSidequestSheet({
     })
   ).current;
 
-  const handleSubmit = () => {
-    const start = new Date();
-    start.setDate(start.getDate() + 1);
-    start.setHours(15, 0, 0, 0);
-    const end = new Date(start.getTime() + 7200000);
-
-    onAdd({
-      id: `sq-${Date.now()}`,
-      title: title.trim() || 'share what you are up to',
-      description: detail.trim() || 'Tell your friends what to expect.',
-      visibility: vis,
-      postedBy: mockUsers[0],
-      attendees: [],
-      createdAt: new Date().toISOString(),
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      location: location.trim() || 'NYC',
-      maxAttendees: Math.max(1, parseInt(maxAtt, 10) || 1),
-    });
-
-    setTitle('');
-    setFromDate('');
-    setFromTime('');
-    setToDate('');
-    setToTime('');
-    setLocation('');
-    setDetail('');
-    setMaxAtt('1');
-    setVis('close-friends');
-    setOpenVis(false);
-    onClose();
-  };
-
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
       <Pressable style={sh.backdrop} onPress={onClose} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={sh.kav} pointerEvents="box-none">
-        <Animated.View style={[sh.container, { paddingBottom: insets.bottom + 16 }, { transform: [{ translateY }] }]}>
-          <View {...pan.panHandlers} style={sh.handleArea}>
-            <View style={sh.handle} />
-          </View>
-          <Text style={sh.label}>CREATE SIDEQUEST</Text>
-          <ScrollView
-            style={sh.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
-          >
-            <TextInput style={sh.bigInput} placeholder="share what you're up to..." placeholderTextColor="#666" value={title} onChangeText={setTitle} />
-            <Text style={sh.lab}>FROM</Text>
-            <View style={sh.row}>
-              <TextInput style={sh.pill} placeholder="date" placeholderTextColor="#666" value={fromDate} onChangeText={setFromDate} />
-              <TextInput style={sh.pill} placeholder="time" placeholderTextColor="#666" value={fromTime} onChangeText={setFromTime} />
-            </View>
-            <Text style={sh.lab}>TO</Text>
-            <View style={sh.row}>
-              <TextInput style={sh.pill} placeholder="date" placeholderTextColor="#666" value={toDate} onChangeText={setToDate} />
-              <TextInput style={sh.pill} placeholder="time" placeholderTextColor="#666" value={toTime} onChangeText={setToTime} />
-            </View>
-            <TextInput style={sh.input} placeholder="📍 location" placeholderTextColor="#666" value={location} onChangeText={setLocation} />
-            <TextInput style={[sh.input, sh.multi]} placeholder="TELL YOUR FRIENDS WHAT TO EXPECT..." placeholderTextColor="#666" value={detail} onChangeText={setDetail} multiline />
-            <Text style={sh.lab}>MAX ATTENDEES</Text>
-            <TextInput style={sh.input} keyboardType="number-pad" placeholderTextColor="#666" value={maxAtt} onChangeText={setMaxAtt} />
-            <Text style={sh.lab}>VISIBILITY</Text>
-            <Pressable style={sh.input} onPress={() => setOpenVis(v => !v)}>
-              <Text style={{ color: '#fff' }}>{vis === 'everyone' ? 'Everyone' : 'Close Friends'}</Text>
-            </Pressable>
-            {openVis && (
-              <View style={sh.dropdown}>
-                <Pressable onPress={() => { setVis('close-friends'); setOpenVis(false); }} style={sh.opt}>
-                  <Text style={sh.optTxt}>Close Friends</Text>
-                </Pressable>
-                <Pressable onPress={() => { setVis('everyone'); setOpenVis(false); }} style={sh.opt}>
-                  <Text style={sh.optTxt}>Everyone</Text>
-                </Pressable>
-              </View>
-            )}
-            <Pressable onPress={handleSubmit} style={({ pressed }) => [sh.submit, pressed && { opacity: 0.75 }]}>
-              <Text style={sh.submitTxt}>share →</Text>
-            </Pressable>
-          </ScrollView>
-        </Animated.View>
-      </KeyboardAvoidingView>
+      <Animated.View style={[sh.container, { transform: [{ translateY }] }]}>
+        <View {...pan.panHandlers} style={sh.handleArea}>
+          <View style={sh.handle} />
+        </View>
+        <CreateSidequestForm onClose={onClose} />
+      </Animated.View>
     </Modal>
   );
 }
@@ -671,7 +582,6 @@ export default function CirclePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [modal, setModal] = useState<CircleModalState>('none');
   const [searchedName, setSearchedName] = useState('');
-  const [sidequests, setSidequests] = useState<Sidequest[]>(mockSidequests);
 
   const [nodes, setNodes] = useState<FriendNode[]>(() =>
     mockUsers.map((u, i) => {
@@ -703,10 +613,6 @@ export default function CirclePage() {
     setSearchedName(val || 'First Name');
     setModal('notOnTether');
   };
-
-  const handleAddSidequest = useCallback((sq: Sidequest) => {
-    setSidequests(prev => [sq, ...prev]);
-  }, []);
 
   const handleTabPress = (tab: NavTabId) => {
     setActiveTab(tab);
@@ -776,7 +682,7 @@ export default function CirclePage() {
         onAddPress={() => setSheetOpen(true)}
       />
 
-      <AddSidequestSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} onAdd={handleAddSidequest} />
+      <AddSidequestSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />
       <AddFriendModal visible={modal === 'addFriend'} onClose={() => setModal('none')} onByPhone={() => setModal('addByPhone')} onFromContacts={() => setModal('none')} />
       <AddByPhoneModal visible={modal === 'addByPhone'} onClose={() => setModal('none')} onBack={() => setModal('addFriend')} onSearch={handleSearch} />
       <NotOnTetherModal visible={modal === 'notOnTether'} name={searchedName} onClose={() => setModal('none')} onBack={() => setModal('addByPhone')} />
@@ -808,22 +714,18 @@ const s = StyleSheet.create({
 });
 
 const sh = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  kav: { flex: 1, justifyContent: 'flex-end' },
-  container: { height: SHEET_HEIGHT, backgroundColor: '#111', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  handleArea: { alignItems: 'center', paddingVertical: 14 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#444' },
-  label: { textAlign: 'center', color: '#888', fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 16 },
-  scroll: { flex: 1 },
-  bigInput: { borderWidth: 1, borderColor: '#333', borderRadius: 12, padding: 14, color: '#fff', fontSize: 16, marginBottom: 16 },
-  lab: { color: '#888', fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 6 },
-  row: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  pill: { flex: 1, borderWidth: 1, borderColor: '#333', borderRadius: 999, padding: 10, color: '#fff', fontSize: 14 },
-  input: { borderWidth: 1, borderColor: '#333', borderRadius: 12, padding: 12, color: '#fff', fontSize: 14, marginBottom: 10 },
-  multi: { minHeight: 100, textAlignVertical: 'top' },
-  dropdown: { borderWidth: 1, borderColor: '#333', borderRadius: 12, paddingHorizontal: 12, marginBottom: 10 },
-  opt: { paddingVertical: 10 },
-  optTxt: { color: '#fff', fontSize: 14 },
-  submit: { backgroundColor: '#4f46e5', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  submitTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  container: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SHEET_HEIGHT,
+    backgroundColor: '#111',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  handleArea: { height: 40, alignItems: 'center', justifyContent: 'center' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#333' },
 });
