@@ -1,7 +1,7 @@
+import { useRouter } from "expo-router"; // 👈 add this
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, useWindowDimensions, View } from "react-native";
 import { styles } from "../../../components/tut/tutstyles";
-
 
 import Slide1 from "../../../components/tut/slide1.svg";
 import Slide2 from "../../../components/tut/slide2.svg";
@@ -16,14 +16,17 @@ const SLIDES = [Slide1, Slide2, Slide7, Slide6, Slide3, Slide5, Slide4];
 export default function TutPage() {
   const { width, height } = useWindowDimensions();
   const [currentSlide, setCurrentSlide] = useState(0);
-
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const router = useRouter(); // 👈 init router
 
   const handleTap = () => {
     if (currentSlide < SLIDES.length - 1) {
-      // Reset opacity to 0 before showing next slide
       fadeAnim.setValue(0);
       setCurrentSlide((prev) => prev + 1);
+    } else {
+      // 👇 navigate when last slide is reached
+      router.push("/info");
     }
   };
 

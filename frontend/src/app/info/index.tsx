@@ -1,6 +1,8 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   SafeAreaView,
@@ -9,20 +11,23 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { styles } from '../../../components/info/infostyles';
+} from "react-native";
+import { styles } from "../../../components/info/infostyles";
 
-export default function Slide4() {
+export default function InfoPage() {
   const router = useRouter();
   const whiteOverlay = useRef(new Animated.Value(1)).current;
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [birthday, setBirthday] = useState('');
-  const [location, setLocation] = useState('');
-  const [affiliation, setAffiliation] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
 
-  // Fade white overlay out on mount (reveal screen)
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthday, setBirthday] = useState(""); // YYYY-MM-DD
+  const [location, setLocation] = useState("");
+  const [affiliation, setAffiliation] = useState("");
+
+  // Fade white overlay out on mount
   useEffect(() => {
     Animated.timing(whiteOverlay, {
       toValue: 0,
@@ -32,46 +37,132 @@ export default function Slide4() {
     }).start();
   }, []);
 
-  const isFormValid =
-    firstName.trim() !== '' &&
-    lastName.trim() !== '' &&
-    birthday.trim() !== '' &&
-    location.trim() !== '';
+  // Get phone from previous page (AsyncStorage) and fetch userId
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const storedPhone = await AsyncStorage.getItem("phone"); // stored from previous page
+  //       if (!storedPhone) {
+  //         Alert.alert(
+  //           "User not found",
+  //           "Phone number missing. Please restart signup."
+  //         );
+  //         return;
+  //       }
 
-  const handleBirthdayChange = (text) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    let formatted = cleaned;
-    if (cleaned.length >= 3) {
-      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`;
-    }
-    setBirthday(formatted.slice(0, 5));
+  //       setPhone(storedPhone);
+
+  //       const res = await fetch(
+  //         `http://YOUR_IP:3000/users/by-phone/${encodeURIComponent(
+  //           storedPhone
+  //         )}`
+  //       );
+  //       if (!res.ok) throw new Error("User not found");
+
+  //       const data = await res.json();
+  //       setUserId(data.user.id);
+
+  //       // Optionally pre-fill existing info
+  //       setFirstName(data.user.first_name || "");
+  //       setLastName(data.user.last_name || "");
+  //       setBirthday(data.user.birthdate || ""); // YYYY-MM-DD
+  //       setLocation(data.user.location || "");
+  //       setAffiliation(data.user.affiliation || "");
+  //     } catch (err) {
+  //       console.error(err);
+  //       Alert.alert(
+  //         "User not found",
+  //         "Please restart signup."
+  //       );
+  //     }
+  //   };
+
+  //   fetchUser();
+  // }, []);
+
+  
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        // Use SecureStore since that's where we saved it in the verify step!
+        //const id = await SecureStore.getItemAsync("user_id");
+        const id = await AsyncStorage.getItem("user_id");
+        console.log("Fetched from SecureStore:", id);
+        
+        if (id) {
+          setUserId(id);
+          // Now fetch the rest of the profile if you want to pre-fill
+          const res = await fetch(`http://localhost:3000/users/${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setFirstName(data.user.first_name || "");
+            // ... rest of your setters
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load user ID", err);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const isFormValid =
+    firstName.trim() !== "" &&
+    lastName.trim() !== "" &&
+    birthday.trim() !== "" &&
+    location.trim() !== "";
+
+  const handleBirthdayChange = (text: string) => {
+    // Accept only digits and dashes for YYYY-MM-DD
+    const cleaned = text.replace(/[^0-9-]/g, "");
+    setBirthday(cleaned.slice(0, 10)); // max 10 chars
   };
 
-  const handleSubmit = () => {
-    if (!isFormValid) {
-      alert('Please fill out all required fields.');
+  const handleSubmit = async () => {
+    console.log("📂 Current stored user_id:", userId);
+    if (!isFormValid || !userId) {
+      
+      Alert.alert("Error", "Please fill all required fields.");
       return;
     }
-    // Fade white overlay in before navigating
-    Animated.timing(whiteOverlay, {
-      toValue: 1,
-      duration: 800,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
-      router.push('/welcome');
-    });
+
+    try {
+      const res = await fetch(`http://localhost:3000/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          birthdate: birthday,
+          location,
+          affiliation,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Update failed");
+
+      Animated.timing(whiteOverlay, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        router.push("/homepage");
+      });
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Something went wrong.");
+    }
   };
 
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
-
         <View style={styles.slide}>
           <View style={styles.formBlock}>
             <Text style={styles.formHeadline}>
-              one last thing—{'\n'}tell us about yourself.
+              one last thing—{"\n"}tell us about yourself.
             </Text>
 
             {/* First + Last Name */}
@@ -111,16 +202,16 @@ export default function Slide4() {
 
             {/* Birthday */}
             <View style={styles.fullWidthGroup}>
-              <Text style={styles.inputLabel}>BIRTHDAY *</Text>
+              <Text style={styles.inputLabel}>BIRTHDAY (YYYY-MM-DD) *</Text>
               <View style={styles.inputBox}>
                 <TextInput
                   style={styles.inputText}
                   value={birthday}
                   onChangeText={handleBirthdayChange}
-                  placeholder="DD/MM"
+                  placeholder="YYYY-MM-DD"
                   placeholderTextColor="#999"
-                  keyboardType="number-pad"
-                  maxLength={5}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
                   underlineColorAndroid="transparent"
                 />
               </View>
@@ -165,7 +256,7 @@ export default function Slide4() {
                 { opacity: isFormValid ? 1 : 0.4 },
               ]}
               onPress={handleSubmit}
-              disabled={!isFormValid}
+              // disabled={!isFormValid || !userId}
             >
               <Text style={styles.completeBtnText}>
                 Complete sign up →
@@ -175,19 +266,20 @@ export default function Slide4() {
         </View>
       </SafeAreaView>
 
-      {/* White overlay on top of everything */}
+      {/* White overlay */}
       <Animated.View
         pointerEvents="none"
         style={{
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: "#FFFFFF",
           opacity: whiteOverlay,
         }}
       />
     </View>
   );
 }
+
