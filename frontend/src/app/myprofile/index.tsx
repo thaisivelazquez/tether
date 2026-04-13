@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, {
   createContext,
@@ -474,6 +475,64 @@ const InnerProfilePage = ({
 }: any) => {
   const { sidequests } = useApp();
 
+
+  // ✅ MOVE STATE HERE so the Profile can see it
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [location, setLocation] = useState("");
+  const [birthday, setBirthday] = useState("");
+
+
+
+  // ✅ FETCH DATA HERE (on mount)
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const id = await AsyncStorage.getItem("user_id");
+        if (id) {
+          
+          const res = await fetch(`http://localhost:3000/users/${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            // Match your DB column names exactly
+            setFirstName(data.user.first_name || ""); 
+            setLastName(data.user.last_name || "");
+            setLocation(data.user.location || "");
+            setBirthday(data.user.birthdate || "");
+            
+            
+            
+            
+            console.log(data)
+           
+          }
+        }
+      } catch (err) {
+        console.error("Load error:", err);
+      }
+    };
+    loadUser();
+    
+  }, []);
+
+
+const formatBirthday = (dateString: string | null) => {
+  if (!dateString) return "Add birthday";
+  
+  const date = new Date(dateString);
+  
+  // Checks if the date is valid
+  if (isNaN(date.getTime())) return dateString;
+
+  // Options for: "January 21, 1995"
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+
+
   const data = useMemo(() => {
     return [...sidequests].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -502,12 +561,14 @@ const InnerProfilePage = ({
               <Pfp width={136} height={136} />
             </View>
 
-            <Text style={styles.name}>Jane Doe</Text>
+            <Text style={styles.name}>{`${firstName} ${lastName}`}</Text>
             <Text style={styles.status}>craving JJ&apos;s french toast...</Text>
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoText}>📍 Manhattan, NY</Text>
-              <Text style={styles.infoText}>🎂 January 21</Text>
+              
+            <Text style={styles.infoText}>📍 {location}</Text>
+            <Text style={styles.infoText}>🎂 {formatBirthday(birthday)}</Text>
+           
             </View>
 
             <Pressable style={styles.shareBtn}>
