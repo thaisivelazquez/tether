@@ -199,15 +199,14 @@ const submit = async () => {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#333',
-    marginTop: 10,
-    marginBottom: 10,
-  },
+// handle: {
+//   alignSelf: 'center',
+//   width: 36,
+//   height: 5,
+//   borderRadius: 3,
+//   backgroundColor: '#666',
+//   marginVertical: 12,
+// },
   dragLabel: {
     textAlign: 'center',
     color: '#888',
