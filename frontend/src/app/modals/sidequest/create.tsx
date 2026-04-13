@@ -1,16 +1,18 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert, Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function CreateModal() {
+export default function CreateSidequestForm({ onClose }: { onClose: () => void }) {
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -25,25 +27,54 @@ export default function CreateModal() {
   const [vis, setVis] = useState<'everyone' | 'close-friends'>('close-friends');
   const [openVis, setOpenVis] = useState(false);
 
-  const submit = () => {
-    const start = new Date();
-    start.setDate(start.getDate() + 1);
-    start.setHours(15, 0, 0, 0);
-    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+const submit = async () => {
+  // 1. Get the userId we stored earlier
+  const userId = await AsyncStorage.getItem("user_id");
+  console.log("🚀 Payload User ID:", userId);
 
-    // TODO: replace this with however you store sidequests
-    console.log({
-      title: title.trim() || 'share what you are up to',
-      description: detail.trim() || 'Tell your friends what to expect.',
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      location: location.trim() || 'Columbia University area',
-      maxAttendees: Math.max(1, parseInt(maxAtt, 10) || 1),
-      visibility: vis,
+
+  if (!userId) {
+    Alert.alert("Error", "User session not found. Please log in again.");
+    return;
+  }
+
+  // 2. Setup your dates (Logic you already had)
+  const start = new Date();
+  start.setDate(start.getDate() + 1);
+  start.setHours(15, 0, 0, 0);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+
+  try {
+    // 3. Make the API call
+    const res = await fetch("http://localhost:3000/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        event_title: title.trim() || 'share what you are up to',
+        event_des: detail.trim() || 'Tell your friends what to expect.',
+        time_of_event: start.toISOString(),
+        time_event_end: end.toISOString(),
+        location: location.trim() || 'Columbia University area',
+        max_attendees: Math.max(1, parseInt(maxAtt, 10) || 1),
+        circle_status: vis, // Mapping 'vis' state to 'circle_status' column
+      }),
     });
 
-    router.back();
-  };
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to create sidequest");
+    }
+
+    // 4. Success!
+    console.log("✅ Sidequest created successfully");
+    onClose();
+    
+  } catch (err) {
+    console.error("❌ Error creating sidequest:", err);
+    Alert.alert("Error", "Could not save your sidequest. Try again.");
+  }
+};
 
   return (
     <ScrollView
@@ -55,8 +86,14 @@ export default function CreateModal() {
     >
       {/* Drag handle */}
       <View style={styles.handle} />
+      <Pressable
+        onPress={submit}
+        style={({ pressed }) => [styles.btn, pressed && { opacity: 0.75 }]}
+      >
+        <Text style={styles.btnText}>share →</Text>
+      </Pressable>
 
-      <Text style={styles.dragLabel}>CREATE SIDEQUEST</Text>
+      {/* <Text style={styles.dragLabel}>CREATE SIDEQUEST</Text> */}
 
       <TextInput
         style={styles.bigInput}
@@ -152,12 +189,7 @@ export default function CreateModal() {
       )}
 
       {/* Submit button */}
-      <Pressable
-        onPress={submit}
-        style={({ pressed }) => [styles.btn, pressed && { opacity: 0.75 }]}
-      >
-        <Text style={styles.btnText}>share →</Text>
-      </Pressable>
+      
     </ScrollView>
   );
 }
@@ -238,12 +270,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
   },
-  btn: {
-    backgroundColor: '#4f46e5',
+ btn: {
+    backgroundColor: '#ff004c',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 24, // Increased margin
+    borderWidth: 2,
+    borderColor: 'yellow', // THIS WILL HELP YOU LOCATE IT
   },
   btnText: {
     color: '#fff',
