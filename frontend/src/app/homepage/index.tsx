@@ -1,9 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   Easing,
+  FlatList,
   Modal,
   PanResponder,
   Platform,
@@ -11,44 +13,115 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Assets & Styles
 import Allbutton from '../../../components/homepage/allbuttons.svg';
 import Closefriendsbutton from '../../../components/homepage/closefriendsbutton.svg';
 import { styles } from '../../../components/homepage/homepagestyles';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
-
-// ✅ IMPORT YOUR FORM COMPONENT
-// Adjust the path to where your create.tsx file lives
 import CreateSidequestForm from '../modals/sidequest/create';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
-/** -------------------------------
- * Types (Matching your DB Schema)
- * ------------------------------- */
-type Sidequest = {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Attendee = {
   id: string;
-  user_id: string;
-  event_title: string;
-  event_des: string;
-  time_of_event: string;
-  time_event_end: string;
+  name: string;
   location: string;
-  max_attendees: number;
-  circle_status: 'everyone' | 'close-friends';
-  poster_first_name?: string;
-  poster_last_name?: string;
 };
 
-/** -------------------------------
- * Homepage Component
- * ------------------------------- */
+type Sidequest = {
+  id: string;
+  title: string;
+  description: string;
+  circleStatus: 'everyone' | 'close-friends';
+  postedBy: {
+    id: string;
+    name: string;
+    location: string;
+  };
+  attendees: Attendee[];
+  startTime: string;
+  endTime: string;
+  location: string;
+  maxAttendees: number;
+};
+
+// ─── SidequestCard ────────────────────────────────────────────────────────────
+
+function SidequestCard({
+  sidequest,
+  onPress,
+}: {
+  sidequest: Sidequest;
+  onPress: () => void;
+}) {
+  const start = new Date(sidequest.startTime);
+  const end = new Date(sidequest.endTime);
+
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+  const isCloseFriends = sidequest.circleStatus === 'close-friends';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [cardStyles.card, pressed && { opacity: 0.8 }]}
+    >
+      {/* Title + badge */}
+      <View style={cardStyles.headerRow}>
+        <Text style={cardStyles.title} numberOfLines={1}>
+          {sidequest.title}
+        </Text>
+        <View style={[cardStyles.badge, isCloseFriends ? cardStyles.badgeCF : cardStyles.badgeAll]}>
+          <Text style={cardStyles.badgeText}>
+            {isCloseFriends ? '🔒 close friends' : '🌍 everyone'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Description */}
+      {sidequest.description ? (
+        <Text style={cardStyles.desc} numberOfLines={2}>
+          {sidequest.description}
+        </Text>
+      ) : null}
+
+      {/* Date & time */}
+      <View style={cardStyles.metaRow}>
+        <Text style={cardStyles.meta}>📅 {formatDate(start)}</Text>
+        <Text style={cardStyles.metaDot}>·</Text>
+        <Text style={cardStyles.meta}>
+          ⏰ {formatTime(start)} – {formatTime(end)}
+        </Text>
+      </View>
+
+      {/* Location & capacity */}
+      <View style={cardStyles.metaRow}>
+        <Text style={cardStyles.meta}>📍 {sidequest.location}</Text>
+        <Text style={cardStyles.metaDot}>·</Text>
+        <Text style={cardStyles.meta}>
+          👥 {sidequest.attendees.length}/{sidequest.maxAttendees}
+        </Text>
+      </View>
+
+      {/* Posted by */}
+      <Text style={cardStyles.poster}>posted by {sidequest.postedBy.name}</Text>
+    </Pressable>
+  );
+}
+
+// ─── HomePage ─────────────────────────────────────────────────────────────────
+
 export default function HomePage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -59,36 +132,39 @@ export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sidequests, setSidequests] = useState<Sidequest[]>([]);
 
-  // ✅ REFRESH LOGIC: Fetch from DB whenever the screen is focused
+  const fetchSidequests = useCallback(async () => {
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      if (!userId) {
+        console.warn('No user_id in storage — not fetching sidequests');
+        return;
+      }
+
+      const baseUrl =
+        Platform.OS === 'web'
+          ? 'http://localhost:3000'
+          : 'http://192.168.1.XX:3000'; // ← replace with your local IP
+
+      const res = await fetch(`${baseUrl}/events?user_id=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSidequests(data);
+      } else {
+        console.error('Fetch sidequests failed:', res.status);
+      }
+    } catch (err) {
+      console.error('Fetch failed:', err);
+    }
+  }, []);
+
+  // Re-fetch every time the screen is focused
   useFocusEffect(
     useCallback(() => {
-      let isMounted = true;
-      const fetchSidequests = async () => {
-        try {
-          // Use your computer's local IP for physical devices!
-          const baseUrl = Platform.OS === 'web' ? 'http://localhost:3000' : 'http://192.168.1.XX:3000';
-          const res = await fetch(`${baseUrl}/events`);
-          if (res.ok && isMounted) {
-            const data = await res.json();
-            setSidequests(data);
-          }
-        } catch (err) {
-          console.error("Fetch failed:", err);
-        }
-      };
       fetchSidequests();
-      return () => { isMounted = false; };
-    }, [])
+    }, [fetchSidequests])
   );
 
-  const filteredData = useMemo(() => {
-    let data = sidequests;
-    if (filter === 'close-friends') {
-      data = sidequests.filter((s) => s.circle_status === 'close-friends');
-    }
-    return [...data].sort((a, b) => new Date(b.time_of_event).getTime() - new Date(a.time_of_event).getTime());
-  }, [filter, sidequests]);
-
+  // Fade in on mount
   useEffect(() => {
     Animated.timing(whiteOverlay, {
       toValue: 0,
@@ -98,43 +174,71 @@ export default function HomePage() {
     }).start();
   }, []);
 
+  const filteredData = useMemo(() => {
+    if (filter === 'close-friends') {
+      return sidequests.filter((s) => s.circleStatus === 'close-friends');
+    }
+    return sidequests; // already sorted DESC by the backend
+  }, [filter, sidequests]);
+
+  // Called after a successful form submit — close sheet then refresh list
+  const handleSidequestCreated = useCallback(() => {
+    setSheetOpen(false);
+    fetchSidequests();
+  }, [fetchSidequests]);
+
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.slide}>
+          {/* Header */}
           <View style={styles.formBlock}>
             <Text style={styles.formHeadline}>
               what's everyone{'\n'}up to this week?
             </Text>
             <View style={styles.buttonRow}>
-              <Pressable onPress={() => setFilter('all')} style={{ opacity: filter === 'all' ? 1 : 0.5 }}>
+              <Pressable
+                onPress={() => setFilter('all')}
+                style={{ opacity: filter === 'all' ? 1 : 0.5 }}
+              >
                 <Allbutton style={styles.allfriendsBtn} />
               </Pressable>
-              <Pressable onPress={() => setFilter('close-friends')} style={{ opacity: filter === 'close-friends' ? 1 : 0.5 }}>
+              <Pressable
+                onPress={() => setFilter('close-friends')}
+                style={{ opacity: filter === 'close-friends' ? 1 : 0.5 }}
+              >
                 <Closefriendsbutton style={styles.closefriendsBtn} />
               </Pressable>
             </View>
           </View>
 
-          {/* <FlatList
+          {/* Sidequest list */}
+          <FlatList
             data={filteredData}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingBottom: 140, flexGrow: 1 }}
-            ListEmptyComponent={<Text style={localStyles.emptyText}>no sidequests yet 👀</Text>}
+            contentContainerStyle={{
+              paddingBottom: 140,
+              flexGrow: 1,
+              paddingHorizontal: 16,
+            }}
+            ListEmptyComponent={
+              <Text style={localStyles.emptyText}>no sidequests yet 👀</Text>
+            }
             renderItem={({ item }) => (
               <SidequestCard
                 sidequest={item}
-                onPress={() => router.push(`/sidequest/${item.id}`)}
+                onPress={() => router.push(`/sidequest/${item.id}` as any)}
               />
             )}
-          /> */}
+          />
         </View>
       </SafeAreaView>
 
-      {/* ✅ ADD SIDEQUEST SHEET (Modal) */}
+      {/* Bottom sheet */}
       <AddSidequestSheet
         visible={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        onClose={handleSidequestCreated}
+        onCancel={() => setSheetOpen(false)}
       />
 
       <Navbar
@@ -151,10 +255,17 @@ export default function HomePage() {
   );
 }
 
-/** -------------------------------
- * AddSidequestSheet Wrapper
- * ------------------------------- */
-function AddSidequestSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+// ─── AddSidequestSheet ────────────────────────────────────────────────────────
+
+function AddSidequestSheet({
+  visible,
+  onClose,
+  onCancel,
+}: {
+  visible: boolean;
+  onClose: () => void;  // successful submit
+  onCancel: () => void; // dismissed without submitting
+}) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   useEffect(() => {
@@ -165,38 +276,45 @@ function AddSidequestSheet({ visible, onClose }: { visible: boolean; onClose: ()
     }).start();
   }, [visible]);
 
-  // Pan responder for drag-to-dismiss
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderMove: (_, { dy }) => { if (dy > 0) translateY.setValue(dy); },
+      onPanResponderMove: (_, { dy }) => {
+        if (dy > 0) translateY.setValue(dy);
+      },
       onPanResponderRelease: (_, { dy, vy }) => {
         if (dy > DISMISS_THRESHOLD || vy > 1.5) {
-          Animated.timing(translateY, { toValue: SHEET_HEIGHT, duration: 250, useNativeDriver: true }).start(onClose);
+          Animated.timing(translateY, {
+            toValue: SHEET_HEIGHT,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(onCancel);
         } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+          }).start();
         }
       },
     })
   ).current;
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
-      <Pressable style={localStyles.backdrop} onPress={onClose} />
+    <Modal transparent visible={visible} animationType="none" onRequestClose={onCancel}>
+      <Pressable style={localStyles.backdrop} onPress={onCancel} />
       <Animated.View style={[localStyles.sheetContainer, { transform: [{ translateY }] }]}>
         <View {...panResponder.panHandlers} style={localStyles.handleArea}>
-           {/* Handle is now inside the Form component usually, but we keep it here for drag logic */}
-           <View style={localStyles.handle} />
+          <View style={localStyles.handle} />
         </View>
-
-        {/* ✅ RENDERING THE STANDALONE FORM COMPONENT */}
         <CreateSidequestForm onClose={onClose} />
-        
       </Animated.View>
     </Modal>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const localStyles = StyleSheet.create({
   whiteOverlay: {
@@ -207,7 +325,8 @@ const localStyles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     marginTop: 40,
-    color: '#666'
+    color: '#666',
+    fontSize: 14,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -215,9 +334,7 @@ const localStyles = StyleSheet.create({
   },
   sheetContainer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 0, left: 0, right: 0,
     height: SHEET_HEIGHT,
     backgroundColor: '#111',
     borderTopLeftRadius: 24,
@@ -235,5 +352,61 @@ const localStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#333',
+  },
+});
+
+const cardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeCF: { backgroundColor: '#2d1f3d' },
+  badgeAll: { backgroundColor: '#1a2d1f' },
+  badgeText: {
+    color: '#c8b1db',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  desc: {
+    color: '#999',
+    fontSize: 13,
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  meta: { color: '#777', fontSize: 12 },
+  metaDot: { color: '#444', fontSize: 12 },
+  poster: {
+    color: '#555',
+    fontSize: 11,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

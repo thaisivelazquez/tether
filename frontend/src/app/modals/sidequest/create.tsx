@@ -273,13 +273,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
  btn: {
-    backgroundColor: '#ff004c',
+    backgroundColor: '#c8b1db',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 24, // Increased margin
     borderWidth: 2,
-    borderColor: 'yellow', // THIS WILL HELP YOU LOCATE IT
+   // THIS WILL HELP YOU LOCATE IT
   },
   btnText: {
     color: '#fff',

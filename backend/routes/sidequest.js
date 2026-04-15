@@ -1,21 +1,49 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db");
-const { v4: uuidv4 } = require("uuid"); // Run 'npm install uuid'
+const { v4: uuidv4 } = require("uuid");
 
 // ─── GET /events ─────────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id is required" });
+  }
+
   try {
     const { rows } = await pool.query(`
       SELECT
         s.*,
-        u.first_name AS poster_first_name,
-        u.last_name  AS poster_last_name,
-        u.location   AS poster_location
+        u.first_name  AS poster_first_name,
+        u.last_name   AS poster_last_name,
+        u.location    AS poster_location
       FROM sidequests s
       LEFT JOIN users u ON u.id = s.user_id
+      WHERE
+        -- 1. You created it
+        s.user_id = $1
+
+        OR
+
+        -- 2. Visible to everyone
+        s.circle_status = 'everyone'
+
+        OR
+
+        -- 3. Close-friends AND you are in that person's inner circle
+        (
+          s.circle_status = 'close-friends'
+          AND EXISTS (
+            SELECT 1 FROM circle c
+            WHERE c.owner_user_id  = s.user_id
+              AND c.member_user_id = $1
+              AND c.circle_type    = 'inner'
+          )
+        )
+
       ORDER BY s.time_of_event DESC
-    `);
+    `, [user_id]);
 
     const sidequests = await Promise.all(
       rows.map(async (row) => {
@@ -33,16 +61,15 @@ router.get("/", async (req, res) => {
 
 // ─── POST /events ─────────────────────────────────────────────────────────────
 router.post("/", async (req, res) => {
-  // Destructure names based on your Postman/Frontend body
-  const { 
-    user_id, 
-    event_title, 
-    event_des, 
-    location, 
-    time_of_event, 
-    time_event_end, 
-    max_attendees, 
-    circle_status
+  const {
+    user_id,
+    event_title,
+    event_des,
+    location,
+    time_of_event,
+    time_event_end,
+    max_attendees,
+    circle_status,
   } = req.body;
 
   if (!event_title || !user_id) {
@@ -50,7 +77,7 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const newId = uuidv4(); // Generate a unique ID for the sidequest
+    const newId = uuidv4();
 
     const { rows } = await pool.query(`
       INSERT INTO sidequests
@@ -61,22 +88,20 @@ router.post("/", async (req, res) => {
       newId,
       user_id,
       event_title,
-      event_des,
-      location ?? "TBD",
+      event_des       ?? "",
+      location        ?? "TBD",
       time_of_event,
       time_event_end,
-      max_attendees ?? null,
-      circle_status
-      
+      max_attendees   ?? null,
+      circle_status,
     ]);
 
-    // Fetch full info to return the correct shape
     const { rows: full } = await pool.query(`
       SELECT
         s.*,
-        u.first_name AS poster_first_name,
-        u.last_name  AS poster_last_name,
-        u.location   AS poster_location
+        u.first_name  AS poster_first_name,
+        u.last_name   AS poster_last_name,
+        u.location    AS poster_location
       FROM sidequests s
       LEFT JOIN users u ON u.id = s.user_id
       WHERE s.id = $1
@@ -113,18 +138,19 @@ async function getAttendees(sidequestId) {
 
 function rowToSidequest(row, attendees = []) {
   return {
-    id: row.id,
-    title: row.event_title,
+    id:          row.id,
+    title:       row.event_title,
     description: row.event_des ?? "",
+    circleStatus: row.circle_status,
     postedBy: {
-      id: row.user_id,
-      name: `${row.poster_first_name} ${row.poster_last_name}`,
+      id:       row.user_id,
+      name:     `${row.poster_first_name} ${row.poster_last_name}`,
       location: row.poster_location ?? "",
     },
     attendees,
-    startTime: row.time_of_event,
-    endTime: row.time_event_end,
-    location: row.location ?? "",
+    startTime:    row.time_of_event,
+    endTime:      row.time_event_end,
+    location:     row.location ?? "",
     maxAttendees: row.max_attendees ?? 1,
   };
 }
