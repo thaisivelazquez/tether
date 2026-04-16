@@ -144,7 +144,7 @@ const submit = async () => {
 
     <TextInput
       style={[styles.input, styles.multiline]}
-      placeholder="TELL YOUR FRIENDS WHAT TO EXPECT..."
+      placeholder="Tell Your Friends What To Expect..."
       placeholderTextColor="#666"
       value={detail}
       onChangeText={setDetail}
