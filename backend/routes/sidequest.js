@@ -115,6 +115,36 @@ router.post("/", async (req, res) => {
   }
 });
 
+// ─── DELETE /events/:id ───────────────────────────────────────────────────────
+// Fixed the route path to use ":id"
+router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { user_id } = req.query; // Ensure the frontend sends ?user_id=...
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id is required to delete" });
+  }
+
+  try {
+    // We include user_id in the WHERE clause. 
+    // If the user doesn't own it, 0 rows will be deleted.
+    const { rowCount } = await pool.query(
+      `DELETE FROM sidequests WHERE id = $1 AND user_id = $2`,
+      [id, user_id]
+    );
+
+    if (rowCount === 0) {
+      // If 0 rows were deleted, it either doesn't exist or ownership failed
+      return res.status(404).json({ error: "Sidequest not found or unauthorized" });
+    }
+
+    res.json({ success: true, message: "Sidequest deleted" });
+  } catch (err) {
+    console.error('[DELETE /events/:id]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getAttendees(sidequestId) {
