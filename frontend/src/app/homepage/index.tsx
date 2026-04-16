@@ -244,10 +244,12 @@ function SidequestDetailModal({
           </View>
 
           <ScrollView
-            contentContainerStyle={{
-              padding: 24,
-              paddingBottom: insets.bottom + 32,
-            }}
+           contentContainerStyle={{
+  paddingBottom: 140,
+  flexGrow: 1,
+  paddingHorizontal: 16,
+  paddingTop: 12, // ✅ adds gap between buttons + cards
+}}
           >
             <Text style={{ color: "#fff", fontSize: 22 }}>
               {sidequest.title}
@@ -358,7 +360,7 @@ export default function HomePage() {
     <View style={{ flex: 1 }}>
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.slide}>
-          <View style={styles.formBlock}>
+         <View style={[styles.formBlock, { marginBottom: 16 }]}>
             <Text style={styles.formHeadline}>
               what's everyone{'\n'}up to this week?
             </Text>
