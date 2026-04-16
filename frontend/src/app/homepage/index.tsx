@@ -389,7 +389,7 @@ export default function HomePage() {
               paddingHorizontal: 16,
             }}
             ListEmptyComponent={
-              <Text style={localStyles.emptyText}>no sidequests yet 👀</Text>
+              <Text style={localStyles.emptyText}>no sidequests yet, why not create one?</Text>
             }
             renderItem={({ item }) => (
               <SidequestCard
