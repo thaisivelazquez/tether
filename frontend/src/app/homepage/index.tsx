@@ -83,38 +83,79 @@ function SidequestCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [cardStyles.card, pressed && { opacity: 0.8 }]}
+      style={({ pressed }) => [
+        cardStyles.card,
+        pressed && { opacity: 0.85 },
+      ]}
     >
+      {/* HEADER */}
       <View style={cardStyles.headerRow}>
-        <Text style={cardStyles.title} numberOfLines={1}>
-          {sidequest.title}
-        </Text>
-        <View style={[cardStyles.badge, isCloseFriends ? cardStyles.badgeCF : cardStyles.badgeAll]}>
+        <Text style={cardStyles.title}>{sidequest.title}</Text>
+
+        <View
+          style={[
+            cardStyles.badge,
+            isCloseFriends ? cardStyles.badgeCF : cardStyles.badgeAll,
+          ]}
+        >
           <Text style={cardStyles.badgeText}>
             {isCloseFriends ? '🔒 close friends' : '🌍 everyone'}
           </Text>
         </View>
       </View>
 
-      {sidequest.description ? (
-        <Text style={cardStyles.desc} numberOfLines={2}>
-          {sidequest.description}
+      {/* DESCRIPTION */}
+      <Text style={cardStyles.desc}>
+        {sidequest.description || 'No description provided'}
+      </Text>
+
+      {/* DATE */}
+      <View style={cardStyles.metaRow}>
+        <Text style={cardStyles.meta}>
+          📅 {formatDate(start)}
         </Text>
-      ) : null}
-
-      <View style={cardStyles.metaRow}>
-        <Text style={cardStyles.meta}>📅 {formatDate(start)}</Text>
-      </View>
-      <View style={cardStyles.metaRow}>
-        <Text style={cardStyles.meta}>⏰ {formatTime(start)} – {formatTime(end)}</Text>
-        <Text style={cardStyles.metaDot}>·</Text>
-        <Text style={cardStyles.meta}>👥 {sidequest.attendees.length}/{sidequest.maxAttendees}</Text>
-      </View>
-      <View style={cardStyles.metaRow}>
-        <Text style={cardStyles.meta}>📍 {sidequest.location}</Text>
       </View>
 
-      <Text style={cardStyles.poster}>posted by {sidequest.postedBy.name}</Text>
+      {/* TIME */}
+      <View style={cardStyles.metaRow}>
+        <Text style={cardStyles.meta}>
+          ⏰ {formatTime(start)} – {formatTime(end)}
+        </Text>
+      </View>
+
+      {/* LOCATION */}
+      <View style={cardStyles.metaRow}>
+        <Text style={cardStyles.meta}>
+          📍 {sidequest.location || 'No location set'}
+        </Text>
+      </View>
+
+      {/* ATTENDEES */}
+      <View style={cardStyles.metaRow}>
+        <Text style={cardStyles.meta}>
+          👥 {sidequest.attendees.length}/{sidequest.maxAttendees}
+        </Text>
+      </View>
+
+      {/* ATTENDEE LIST (NEW) */}
+      {sidequest.attendees.length > 0 && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={cardStyles.meta}>
+            going:
+          </Text>
+
+          {sidequest.attendees.map((a) => (
+            <Text key={a.id} style={[cardStyles.meta, { marginLeft: 8 }]}>
+              • {a.name}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {/* POSTER */}
+      <Text style={cardStyles.poster}>
+        posted by {sidequest.postedBy.name}
+      </Text>
     </Pressable>
   );
 }
@@ -243,45 +284,96 @@ function SidequestDetailModal({
             <View style={localStyles.handle} />
           </View>
 
-          <ScrollView
-           contentContainerStyle={{
-  paddingBottom: 140,
-  flexGrow: 1,
-  paddingHorizontal: 16,
-  paddingTop: 12, // ✅ adds gap between buttons + cards
-}}
-          >
-            <Text style={{ color: "#fff", fontSize: 22 }}>
-              {sidequest.title}
-            </Text>
+<ScrollView
+  contentContainerStyle={{
+    paddingBottom: 140,
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  }}
+>
+  {/* TITLE */}
+  <Text style={{ color: "#fff", fontSize: 26, fontWeight: "700" }}>
+    {sidequest.title}
+  </Text>
 
-            <Text style={{ color: "#777", marginTop: 4 }}>
-              posted by {sidequest.postedBy.name}
-            </Text>
+  {/* POSTED BY */}
+  <Text style={{ color: "#777", marginTop: 4 }}>
+    posted by {sidequest.postedBy.name}
+  </Text>
 
-            <Text style={{ color: "#ccc", marginTop: 12 }}>
-              📍 {sidequest.location}
-            </Text>
+  {/* BADGE */}
+  <View style={{ marginTop: 10 }}>
+    <Text style={{ color: "#aaa" }}>
+      {sidequest.circleStatus === "close-friends"
+        ? "🔒 close friends"
+        : "🌍 everyone"}
+    </Text>
+  </View>
 
-            {/* DELETE BUTTON */}
-            {isOwner && (
-              <Pressable
-                onPress={handleDelete}
-                disabled={deleting}
-                style={{
-                  marginTop: 40,
-                  padding: 14,
-                  backgroundColor: "#2d1010",
-                  borderRadius: 12,
-                  opacity: deleting ? 0.5 : 1,
-                }}
-              >
-                <Text style={{ color: "#ff4d4d", textAlign: "center" }}>
-                  {deleting ? "Deleting..." : "🗑 Delete Sidequest"}
-                </Text>
-              </Pressable>
-            )}
-          </ScrollView>
+  {/* DESCRIPTION */}
+  <Text style={{ color: "#ccc", marginTop: 16, lineHeight: 20 }}>
+    {sidequest.description || "No description provided"}
+  </Text>
+
+  {/* DATE + TIME */}
+  <View style={{ marginTop: 20 }}>
+    <Text style={{ color: "#fff", fontWeight: "600" }}>When</Text>
+    <Text style={{ color: "#aaa", marginTop: 4 }}>
+      {formatDate(new Date(sidequest.startTime))}
+    </Text>
+    <Text style={{ color: "#aaa" }}>
+      {formatTime(new Date(sidequest.startTime))} →{" "}
+      {formatTime(new Date(sidequest.endTime))}
+    </Text>
+  </View>
+
+  {/* LOCATION */}
+  <View style={{ marginTop: 20 }}>
+    <Text style={{ color: "#fff", fontWeight: "600" }}>Location</Text>
+    <Text style={{ color: "#aaa", marginTop: 4 }}>
+      📍 {sidequest.location || "No location set"}
+    </Text>
+  </View>
+
+  {/* ATTENDEES */}
+  <View style={{ marginTop: 20 }}>
+    <Text style={{ color: "#fff", fontWeight: "600" }}>
+      Attendees ({sidequest.attendees.length}/{sidequest.maxAttendees})
+    </Text>
+
+    {sidequest.attendees.length === 0 ? (
+      <Text style={{ color: "#777", marginTop: 6 }}>
+        No one has joined yet
+      </Text>
+    ) : (
+      sidequest.attendees.map((a) => (
+        <Text key={a.id} style={{ color: "#aaa", marginTop: 4 }}>
+          • {a.name}
+        </Text>
+      ))
+    )}
+  </View>
+
+  {/* DELETE BUTTON */}
+  {isOwner && (
+    <Pressable
+      onPress={handleDelete}
+      disabled={deleting}
+      style={{
+        marginTop: 40,
+        padding: 14,
+        backgroundColor: "#2d1010",
+        borderRadius: 12,
+        opacity: deleting ? 0.5 : 1,
+      }}
+    >
+      <Text style={{ color: "#ff4d4d", textAlign: "center" }}>
+        {deleting ? "Deleting..." : "🗑 Delete Sidequest"}
+      </Text>
+    </Pressable>
+  )}
+</ScrollView>
         </Animated.View>
       </View>
     </Modal>
