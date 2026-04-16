@@ -145,6 +145,66 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// ─── PATCH /events ─────────────────────────────────────────────────────────────
+
+router.patch("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { user_id } = req.query; // same auth pattern as DELETE
+
+  const {
+    event_title,
+    event_des,
+    location,
+    time_of_event,
+    time_event_end,
+    max_attendees,
+    circle_status,
+  } = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id is required to update" });
+  }
+
+  try {
+    const { rowCount } = await pool.query(
+      `
+      UPDATE sidequests
+      SET
+        event_title = COALESCE($1, event_title),
+        event_des = COALESCE($2, event_des),
+        location = COALESCE($3, location),
+        time_of_event = COALESCE($4, time_of_event),
+        time_event_end = COALESCE($5, time_event_end),
+        max_attendees = COALESCE($6, max_attendees),
+        circle_status = COALESCE($7, circle_status)
+      WHERE id = $8 AND user_id = $9
+      `,
+      [
+        event_title,
+        event_des,
+        location,
+        time_of_event,
+        time_event_end,
+        max_attendees,
+        circle_status,
+        id,
+        user_id,
+      ]
+    );
+
+    if (rowCount === 0) {
+      return res
+        .status(404)
+        .json({ error: "Sidequest not found or unauthorized" });
+    }
+
+    res.json({ success: true, message: "Sidequest updated" });
+  } catch (err) {
+    console.error("[PATCH /events/:id]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getAttendees(sidequestId) {
