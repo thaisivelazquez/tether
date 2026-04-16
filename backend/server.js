@@ -45,7 +45,7 @@ app.use("/auth", require("./routes/auth"));
 app.use("/verify", require("./routes/verify"));
 app.use("/users", require("./routes/users"));
 app.use("/events", require("./routes/sidequest"));
-// app.use("/myprofile", require("./routes/myprofile"));
+app.use("/circle", require("./routes/circle"));
 
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));

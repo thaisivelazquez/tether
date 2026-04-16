@@ -65,7 +65,12 @@ const handleSubmit = async () => {
   setError("");
 
   try {
-    const res = await fetch("http://localhost:3000/auth/send-otp", {
+    const getBaseUrl = () =>
+  Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://YOUR_LAPTOP_IP:3000';
+
+const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -4,39 +4,41 @@ import {
   Animated,
   Easing,
   FlatList,
+  Image,
   SafeAreaView,
   StatusBar,
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from 'react-native';
-import Arrow11Svg from '../../../components/welcome/arrow11.svg';
-import CircleSvg from '../../../components/welcome/circle.svg';
-import ParticlePattern04Svg from '../../../components/welcome/particlepattern04.svg';
-import ParticlePattern041Svg from '../../../components/welcome/particlepattern041.svg';
-import ParticlePattern042Svg from '../../../components/welcome/particlepattern042.svg';
-import ParticlePattern13Svg from '../../../components/welcome/particlepattern13.svg';
-import ScribbleLine08Svg from '../../../components/welcome/scribbleline08.svg';
-import ScribbleLine26Svg from '../../../components/welcome/scribbleline26.svg';
 
-import Event1 from '../../../components/welcome/event1.svg';
-import Event2 from '../../../components/welcome/event2.svg';
-import Event3 from '../../../components/welcome/event3.svg';
+import { styles } from '../../../components/welcome/welcomestyles';
 
-import { styles } from "../../../components/welcome/welcomestyles";
+const Arrow11Img = require('../../../components/welcome/arrow11.png');
+const CircleImg = require('../../../components/welcome/circle.png');
+const ParticlePattern04Img = require('../../../components/welcome/particlepattern04.png');
+const ParticlePattern041Img = require('../../../components/welcome/particlepattern041.png');
+const ParticlePattern042Img = require('../../../components/welcome/particlepattern042.png');
+const ParticlePattern13Img = require('../../../components/welcome/particlepattern13.png');
+const ScribbleLine08Img = require('../../../components/welcome/scribbleline08.png');
+const ScribbleLine26Img = require('../../../components/welcome/scribbleline26.png');
+const Event1Img = require('../../../components/welcome/event1.png');
+const Event2Img = require('../../../components/welcome/event2.png');
+const Event3Img = require('../../../components/welcome/event3.png');
+
 
 function Slide1() {
   return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
       <View style={{ position: 'relative', width: '100%', height: '55%' }}>
-        <Arrow11Svg style={styles.doodleRefresh} />
-        <ParticlePattern04Svg style={styles.doodleSparkleLeft} />
-        <ParticlePattern041Svg style={styles.doodleSparkleLeft1} />
-        <ParticlePattern042Svg style={styles.doodleSparkleLeft2} />
-        <ParticlePattern13Svg style={styles.doodleSparkleCenter} />
-        <ScribbleLine08Svg style={styles.doodleNote} />
-        <ScribbleLine26Svg style={styles.doodleWisp} />
+        <Image source={Arrow11Img} style={styles.doodleRefresh} resizeMode="contain" />
+        <Image source={ParticlePattern04Img} style={styles.doodleSparkleLeft} resizeMode="contain" />
+        <Image source={ParticlePattern041Img} style={styles.doodleSparkleLeft1} resizeMode="contain" />
+        <Image source={ParticlePattern042Img} style={styles.doodleSparkleLeft2} resizeMode="contain" />
+        <Image source={ParticlePattern13Img} style={styles.doodleSparkleCenter} resizeMode="contain" />
+        <Image source={ScribbleLine08Img} style={styles.doodleNote} resizeMode="contain" />
+        <Image source={ScribbleLine26Img} style={styles.doodleWisp} resizeMode="contain" />
       </View>
       <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 280 }}>
         <Text style={{
@@ -66,11 +68,12 @@ function Slide1() {
   );
 }
 
+
 function Slide2() {
   return (
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
       <View style={{ position: 'relative', width: '100%', height: '55%' }}>
-        <CircleSvg style={styles.circle} />
+        <Image source={CircleImg} style={styles.circle} resizeMode="contain" />
       </View>
       <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 280 }}>
         <Text style={{
@@ -101,6 +104,7 @@ function Slide2() {
   );
 }
 
+
 function ActivityRow({ name, location, time, going }: {
   name: string;
   location: string;
@@ -124,6 +128,7 @@ function ActivityRow({ name, location, time, going }: {
   );
 }
 
+
 function Slide3() {
   const router = useRouter();
 
@@ -131,11 +136,10 @@ function Slide3() {
     <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
       <View style={{ width: '100%', height: '55%', paddingHorizontal: 24, paddingTop: 24 }}>
         <View style={{ position: 'relative', width: '100%', height: '55%' }}>
-
-          <Event1 style={styles.activityList} />
-          <Event2 style={styles.activityList} />
-          <Event3 style={styles.activityList} />
-      </View>
+          <Image source={Event1Img} style={styles.activityList} resizeMode="contain" />
+          <Image source={Event2Img} style={styles.activityList} resizeMode="contain" />
+          <Image source={Event3Img} style={styles.activityList} resizeMode="contain" />
+        </View>
       </View>
 
       <View style={{ paddingHorizontal: 32, alignItems: 'center', marginTop: 24 }}>
@@ -181,7 +185,9 @@ function Slide3() {
   );
 }
 
+
 const SLIDES = [Slide1, Slide2, Slide3];
+
 
 export default function Welcome() {
   const { width } = useWindowDimensions();
@@ -189,7 +195,6 @@ export default function Welcome() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const whiteOverlay = useRef(new Animated.Value(1)).current;
 
-  // Fade from white on mount
   useEffect(() => {
     Animated.timing(whiteOverlay, {
       toValue: 0,

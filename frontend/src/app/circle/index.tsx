@@ -1,10 +1,12 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -17,6 +19,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
+
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -33,40 +38,31 @@ const RING_STROKE_WIDTH = 1.5;
 const SAFE_GAP = 14;
 const INNER_BOUNDARY_GAP = 12;
 
-const OUTER_SAFE_RADIUS =
-  OUTER_RING_RADIUS - AVATAR_SIZE / 2 - RING_STROKE_WIDTH - SAFE_GAP;
+const OUTER_SAFE_RADIUS = OUTER_RING_RADIUS - AVATAR_SIZE / 2 - RING_STROKE_WIDTH - SAFE_GAP;
+const INNER_SAFE_RADIUS = INNER_RING_RADIUS - AVATAR_SIZE / 2 - RING_STROKE_WIDTH - SAFE_GAP;
 
-const INNER_SAFE_RADIUS =
-  INNER_RING_RADIUS - AVATAR_SIZE / 2 - RING_STROKE_WIDTH - SAFE_GAP;
+const AVATAR_COLORS = ['#d9d9d9', '#d4c5f9', '#c5e8f9', '#c5f9d4', '#f9d4c5', '#f9f0c5'];
 
-type RingLevel = 'friends' | 'close-friends';
+const getBaseUrl = () =>
+  Platform.OS === 'web'
+    ? 'http://'
+    : 'http://172.19.3.53:3000'; // same IP as your homepage
+
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type Ring = 'inner' | 'outer';
+type CircleModalState = 'none' | 'addFriend' | 'addByPhone' | 'notOnTether';
 
 type User = {
   id: string;
   name: string;
-  ringLevel: RingLevel;
+  ringLevel: 'close-friends' | 'friends';
   avatar: string;
   handle: string;
   location: string;
   status: string;
 };
-
-type Sidequest = {
-  id: string;
-  title: string;
-  description: string;
-  visibility: 'close-friends' | 'everyone';
-  postedBy: User;
-  attendees: User[];
-  createdAt: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  maxAttendees: number;
-};
-
-type CircleModalState = 'none' | 'addFriend' | 'addByPhone' | 'notOnTether';
 
 type FriendNode = {
   user: User;
@@ -76,61 +72,62 @@ type FriendNode = {
   y: number;
 };
 
-const mockUsers: User[] = [
-  { id: 'u1', name: 'Alice', ringLevel: 'close-friends', avatar: '👩', handle: '@alice', location: 'NYC', status: 'Hey there!' },
-  { id: 'u2', name: 'Bob', ringLevel: 'friends', avatar: '🧑', handle: '@bob', location: 'SF', status: 'Ready to party!' },
-  { id: 'u3', name: 'Cara', ringLevel: 'close-friends', avatar: '👱', handle: '@cara', location: 'LA', status: 'Living my best life' },
-  { id: 'u4', name: 'Dan', ringLevel: 'friends', avatar: '🧔', handle: '@dan', location: 'ATL', status: 'Chillin 🤙' },
-  { id: 'u5', name: 'Eva', ringLevel: 'close-friends', avatar: '🙋', handle: '@eva', location: 'NYC', status: 'Always down' },
-];
+type CircleMember = {
+  member_user_id: string;
+  circle_type: Ring;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  location: string | null;
+  bio: string | null;
+};
 
-const now = new Date();
-const fmt = (offsetHours: number) =>
-  new Date(now.getTime() + offsetHours * 3600 * 1000).toISOString();
 
-const mockSidequests: Sidequest[] = [
-  {
-    id: 'sq1',
-    title: 'Rooftop Drinks 🍹',
-    description: 'Casual drinks on my rooftop!',
-    visibility: 'close-friends',
-    postedBy: mockUsers[0],
-    attendees: [mockUsers[1]],
-    createdAt: fmt(-1),
-    startTime: fmt(2),
-    endTime: fmt(5),
-    location: '123 Main St',
-    maxAttendees: 10,
-  },
-  {
-    id: 'sq2',
-    title: 'Pickup Basketball 🏀',
-    description: 'Pickup game at the park.',
-    visibility: 'everyone',
-    postedBy: mockUsers[1],
-    attendees: [mockUsers[3]],
-    createdAt: fmt(-2),
-    startTime: fmt(3),
-    endTime: fmt(5),
-    location: 'Riverside Park',
-    maxAttendees: 10,
-  },
-  {
-    id: 'sq3',
-    title: 'Brunch Run 🥞',
-    description: 'New brunch spot on 5th!',
-    visibility: 'close-friends',
-    postedBy: mockUsers[2],
-    attendees: [mockUsers[0]],
-    createdAt: fmt(-3),
-    startTime: fmt(1),
-    endTime: fmt(3),
-    location: '5th Ave Café',
-    maxAttendees: 6,
-  },
-];
+// ─── API helpers ──────────────────────────────────────────────────────────────
 
-const AVATAR_COLORS = ['#d9d9d9', '#d4c5f9', '#c5e8f9', '#c5f9d4', '#f9d4c5', '#f9f0c5'];
+async function fetchCircle(): Promise<CircleMember[]> {
+  const userId = await AsyncStorage.getItem('user_id');
+  if (!userId) throw new Error('No user_id in storage');
+
+  const res = await fetch(`${getBaseUrl()}/circle?user_id=${userId}`);
+ if (!res.ok) {
+  const body = await res.text();
+  console.error('fetchCircle failed:', res.status, body);
+  throw new Error('Failed to fetch circle');
+}
+  const data = await res.json();
+  return data.members as CircleMember[];
+}
+
+async function updateCircleRing(memberId: string, newRing: Ring): Promise<void> {
+  const userId = await AsyncStorage.getItem('user_id');
+  const res = await fetch(
+    `${getBaseUrl()}/circle/${memberId}?user_id=${encodeURIComponent(userId ?? '')}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ circle_type: newRing }),
+    }
+  );
+  if (!res.ok) throw new Error('Failed to update circle ring');
+}
+
+async function removeFriendFromCircle(memberId: string): Promise<void> {
+  const userId = await AsyncStorage.getItem('user_id');
+  const res = await fetch(
+    `${getBaseUrl()}/circle/${memberId}?user_id=${encodeURIComponent(userId ?? '')}`,
+    { method: 'DELETE' }
+  );
+  if (!res.ok) throw new Error('Failed to remove circle member');
+}
+
+
+// ─── Orbit helpers ────────────────────────────────────────────────────────────
+
+const polarToXY = (angle: number, radius: number) => ({
+  x: Math.cos(angle) * radius,
+  y: Math.sin(angle) * radius,
+});
 
 const clampToOrbit = (x: number, y: number) => {
   const d = Math.sqrt(x * x + y * y);
@@ -140,11 +137,9 @@ const clampToOrbit = (x: number, y: number) => {
   const capped = Math.min(d, OUTER_SAFE_RADIUS);
 
   const innerForbiddenMin = INNER_SAFE_RADIUS;
-  const innerForbiddenMax =
-    INNER_RING_RADIUS + AVATAR_SIZE / 2 + RING_STROKE_WIDTH + INNER_BOUNDARY_GAP;
+  const innerForbiddenMax = INNER_RING_RADIUS + AVATAR_SIZE / 2 + RING_STROKE_WIDTH + INNER_BOUNDARY_GAP;
 
   let finalRadius = capped;
-
   if (capped > innerForbiddenMin && capped < innerForbiddenMax) {
     const midpoint = (innerForbiddenMin + innerForbiddenMax) / 2;
     finalRadius = capped < midpoint ? innerForbiddenMin : innerForbiddenMax;
@@ -156,24 +151,13 @@ const clampToOrbit = (x: number, y: number) => {
   };
 };
 
-const polarToXY = (angle: number, radius: number) => ({
-  x: Math.cos(angle) * radius,
-  y: Math.sin(angle) * radius,
-});
 
-/** -------------------------------
- * Shared Bottom Sheet (same as Profile)
- * ------------------------------- */
-function AddSidequestSheet({
-  visible,
-  onClose,
-}: {
-  visible: boolean;
-  onClose: () => void;
-}) {
+// ─── AddSidequestSheet ────────────────────────────────────────────────────────
+
+function AddSidequestSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.spring(translateY, {
       toValue: visible ? 0 : SHEET_HEIGHT,
       useNativeDriver: true,
@@ -185,22 +169,12 @@ function AddSidequestSheet({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderMove: (_, { dy }) => {
-        if (dy > 0) translateY.setValue(dy);
-      },
+      onPanResponderMove: (_, { dy }) => { if (dy > 0) translateY.setValue(dy); },
       onPanResponderRelease: (_, { dy, vy }) => {
         if (dy > DISMISS_THRESHOLD || vy > 1.5) {
-          Animated.timing(translateY, {
-            toValue: SHEET_HEIGHT,
-            duration: 250,
-            useNativeDriver: true,
-          }).start(onClose);
+          Animated.timing(translateY, { toValue: SHEET_HEIGHT, duration: 250, useNativeDriver: true }).start(onClose);
         } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 6,
-          }).start();
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
         }
       },
     })
@@ -219,24 +193,19 @@ function AddSidequestSheet({
   );
 }
 
+
+// ─── AddFriendModal ───────────────────────────────────────────────────────────
+
 function AddFriendModal({
-  visible,
-  onClose,
-  onByPhone,
-  onFromContacts,
+  visible, onClose, onByPhone, onFromContacts,
 }: {
-  visible: boolean;
-  onClose: () => void;
-  onByPhone: () => void;
-  onFromContacts: () => void;
+  visible: boolean; onClose: () => void; onByPhone: () => void; onFromContacts: () => void;
 }) {
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
         <Pressable style={s.card} onPress={() => {}}>
-          <Pressable style={s.xBtn} onPress={onClose}>
-            <Text style={s.xTxt}>✕</Text>
-          </Pressable>
+          <Pressable style={s.xBtn} onPress={onClose}><Text style={s.xTxt}>✕</Text></Pressable>
           <Text style={s.cardTitle}>add a friend</Text>
           <Text style={s.cardSub}>grow your circle!</Text>
           <Pressable style={s.optBtn} onPress={onFromContacts}>
@@ -251,16 +220,13 @@ function AddFriendModal({
   );
 }
 
+
+// ─── AddByPhoneModal ──────────────────────────────────────────────────────────
+
 function AddByPhoneModal({
-  visible,
-  onClose,
-  onBack,
-  onSearch,
+  visible, onClose, onBack, onSearch,
 }: {
-  visible: boolean;
-  onClose: () => void;
-  onBack: () => void;
-  onSearch: (v: string) => void;
+  visible: boolean; onClose: () => void; onBack: () => void; onSearch: (v: string) => void;
 }) {
   const [val, setVal] = useState('');
 
@@ -268,9 +234,7 @@ function AddByPhoneModal({
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
         <Pressable style={s.card} onPress={() => {}}>
-          <Pressable style={s.xBtn} onPress={onClose}>
-            <Text style={s.xTxt}>✕</Text>
-          </Pressable>
+          <Pressable style={s.xBtn} onPress={onClose}><Text style={s.xTxt}>✕</Text></Pressable>
           <Text style={s.cardTitle}>add a friend</Text>
           <Text style={s.cardSub}>grow your orbit!</Text>
           <View style={s.phoneRow}>
@@ -297,24 +261,19 @@ function AddByPhoneModal({
   );
 }
 
+
+// ─── NotOnTetherModal ─────────────────────────────────────────────────────────
+
 function NotOnTetherModal({
-  visible,
-  name,
-  onClose,
-  onBack,
+  visible, name, onClose, onBack,
 }: {
-  visible: boolean;
-  name: string;
-  onClose: () => void;
-  onBack: () => void;
+  visible: boolean; name: string; onClose: () => void; onBack: () => void;
 }) {
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
         <Pressable style={s.card} onPress={() => {}}>
-          <Pressable style={s.xBtn} onPress={onClose}>
-            <Text style={s.xTxt}>✕</Text>
-          </Pressable>
+          <Pressable style={s.xBtn} onPress={onClose}><Text style={s.xTxt}>✕</Text></Pressable>
           <Text style={[s.cardTitle, { lineHeight: 30 }]}>
             {'Looks like\n'}
             <Text style={{ fontWeight: '700' }}>{name || 'First Name'}</Text>
@@ -332,13 +291,11 @@ function NotOnTetherModal({
   );
 }
 
+
+// ─── DraggableAvatar ──────────────────────────────────────────────────────────
+
 function DraggableAvatar({
-  node,
-  isEditing,
-  isSelected,
-  onSelect,
-  onRemove,
-  onMove,
+  node, isEditing, isSelected, onSelect, onRemove, onMove,
 }: {
   node: FriendNode;
   isEditing: boolean;
@@ -351,7 +308,7 @@ function DraggableAvatar({
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragging = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!dragging.current) {
       pan.setValue({ x: node.x, y: node.y });
     }
@@ -362,36 +319,27 @@ function DraggableAvatar({
       PanResponder.create({
         onStartShouldSetPanResponder: () => isEditing,
         onStartShouldSetPanResponderCapture: () => isEditing,
-        onMoveShouldSetPanResponder: (_, g) =>
-          isEditing && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2),
-        onMoveShouldSetPanResponderCapture: (_, g) =>
-          isEditing && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2),
+        onMoveShouldSetPanResponder: (_, g) => isEditing && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2),
+        onMoveShouldSetPanResponderCapture: (_, g) => isEditing && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2),
 
         onPanResponderGrant: () => {
           dragging.current = false;
           onSelect(null);
 
           holdTimer.current = setTimeout(() => {
-            if (!dragging.current) {
-              onSelect(node.user.id);
-            }
+            if (!dragging.current) onSelect(node.user.id);
           }, 700);
 
           pan.setOffset({
             x: (pan.x as any).__getValue(),
             y: (pan.y as any).__getValue(),
           });
-
           pan.setValue({ x: 0, y: 0 });
         },
 
         onPanResponderMove: (_, gesture) => {
           dragging.current = true;
-
-          if (holdTimer.current) {
-            clearTimeout(holdTimer.current);
-            holdTimer.current = null;
-          }
+          if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
 
           const rawX = (pan.x as any)._offset + gesture.dx;
           const rawY = (pan.y as any)._offset + gesture.dy;
@@ -404,10 +352,7 @@ function DraggableAvatar({
         },
 
         onPanResponderRelease: (_, gesture) => {
-          if (holdTimer.current) {
-            clearTimeout(holdTimer.current);
-            holdTimer.current = null;
-          }
+          if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
 
           const rawX = (pan.x as any)._offset + gesture.dx;
           const rawY = (pan.y as any)._offset + gesture.dy;
@@ -415,17 +360,12 @@ function DraggableAvatar({
 
           pan.flattenOffset();
           pan.setValue(next);
-
           dragging.current = false;
           onMove(node.user.id, next.x, next.y);
         },
 
         onPanResponderTerminate: () => {
-          if (holdTimer.current) {
-            clearTimeout(holdTimer.current);
-            holdTimer.current = null;
-          }
-
+          if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
           pan.flattenOffset();
           dragging.current = false;
         },
@@ -467,16 +407,9 @@ function DraggableAvatar({
         <Pressable
           onPress={() => onRemove(node.user.id)}
           style={{
-            position: 'absolute',
-            top: -8,
-            right: -8,
-            width: 20,
-            height: 20,
-            borderRadius: 10,
-            backgroundColor: '#ff4444',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
+            position: 'absolute', top: -8, right: -8,
+            width: 20, height: 20, borderRadius: 10,
+            backgroundColor: '#ff4444', alignItems: 'center', justifyContent: 'center', zIndex: 100,
           }}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -487,36 +420,25 @@ function DraggableAvatar({
       {isSelected && (
         <View
           style={{
-            position: 'absolute',
-            bottom: AVATAR_SIZE + 6,
-            left: -42,
-            backgroundColor: '#fff',
-            borderRadius: 20,
-            paddingVertical: 4,
-            paddingHorizontal: 10,
-            shadowColor: '#000',
-            shadowOpacity: 0.12,
-            shadowRadius: 6,
-            elevation: 4,
+            position: 'absolute', bottom: AVATAR_SIZE + 6, left: -42,
+            backgroundColor: '#fff', borderRadius: 20,
+            paddingVertical: 4, paddingHorizontal: 10,
+            shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
             minWidth: 130,
           }}
         >
-          <Text style={{ fontSize: 10, color: '#333', fontWeight: '600' }}>
-            ✕ Remove from orbit
-          </Text>
+          <Text style={{ fontSize: 10, color: '#333', fontWeight: '600' }}>✕ Remove from orbit</Text>
         </View>
       )}
     </Animated.View>
   );
 }
 
+
+// ─── OrbitView ────────────────────────────────────────────────────────────────
+
 function OrbitView({
-  nodes,
-  isEditing,
-  selectedId,
-  onSelect,
-  onRemove,
-  onMove,
+  nodes, isEditing, selectedId, onSelect, onRemove, onMove,
 }: {
   nodes: FriendNode[];
   isEditing: boolean;
@@ -533,25 +455,8 @@ function OrbitView({
       style={{ width: ORBIT_SIZE, height: ORBIT_SIZE, alignItems: 'center', justifyContent: 'center' }}
     >
       <View style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'center' }]}>
-        <View
-          style={{
-            width: ORBIT_SIZE,
-            height: ORBIT_SIZE,
-            borderRadius: ORBIT_RADIUS,
-            borderWidth: RING_STROKE_WIDTH,
-            borderColor: '#ccc',
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            width: innerDiameter,
-            height: innerDiameter,
-            borderRadius: INNER_RING_RADIUS,
-            borderWidth: RING_STROKE_WIDTH,
-            borderColor: '#ccc',
-          }}
-        />
+        <View style={{ width: ORBIT_SIZE, height: ORBIT_SIZE, borderRadius: ORBIT_RADIUS, borderWidth: RING_STROKE_WIDTH, borderColor: '#ccc' }} />
+        <View style={{ position: 'absolute', width: innerDiameter, height: innerDiameter, borderRadius: INNER_RING_RADIUS, borderWidth: RING_STROKE_WIDTH, borderColor: '#ccc' }} />
       </View>
 
       <Text style={[s.ringLabel, { top: ORBIT_SIZE * 0.72, left: ORBIT_SIZE * 0.30 }]}>INNER RING</Text>
@@ -572,6 +477,9 @@ function OrbitView({
   );
 }
 
+
+// ─── CirclePage ───────────────────────────────────────────────────────────────
+
 export default function CirclePage() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -582,31 +490,91 @@ export default function CirclePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [modal, setModal] = useState<CircleModalState>('none');
   const [searchedName, setSearchedName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [nodes, setNodes] = useState<FriendNode[]>([]);
 
-  const [nodes, setNodes] = useState<FriendNode[]>(() =>
-    mockUsers.map((u, i) => {
-      const angle = (i / mockUsers.length) * Math.PI * 2;
-      const ring = u.ringLevel === 'close-friends' ? 'inner' : 'outer';
-      const radius = ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72;
-      const { x, y } = polarToXY(angle, radius);
-      return { user: u, ring, color: AVATAR_COLORS[i % AVATAR_COLORS.length], x, y };
-    })
-  );
+  const prevRingRef = useRef<Record<string, Ring>>({});
 
-  const handleRemove = (id: string) => {
+  // ── Load circle from DB on mount ──────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const members = await fetchCircle();
+        if (cancelled) return;
+
+        const initialNodes: FriendNode[] = members.map((m, i) => {
+          const ring: Ring = m.circle_type;
+          const radius = ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72;
+          const angle = (i / Math.max(members.length, 1)) * Math.PI * 2;
+          const { x, y } = polarToXY(angle, radius);
+
+          const user: User = {
+            id: m.member_user_id,
+            name: `${m.first_name} ${m.last_name}`,
+            ringLevel: ring === 'inner' ? 'close-friends' : 'friends',
+            avatar: '🙂',
+            handle: `@${m.first_name.toLowerCase()}`,
+            location: m.location ?? '',
+            status: m.bio ?? '',
+          };
+
+          prevRingRef.current[m.member_user_id] = ring;
+          return { user, ring, color: AVATAR_COLORS[i % AVATAR_COLORS.length], x, y };
+        });
+
+        setNodes(initialNodes);
+      } catch (err) {
+        console.error('Circle load error:', err);
+        if (!cancelled) setError('Could not load your circle. Pull to retry.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Remove ────────────────────────────────────────────────────────────────
+  const handleRemove = async (id: string) => {
     setNodes(prev => prev.filter(n => n.user.id !== id));
     setSelectedId(null);
+    delete prevRingRef.current[id];
+
+    try {
+      await removeFriendFromCircle(id);
+    } catch {
+      console.error('Failed to remove friend from circle in DB');
+    }
   };
 
-  const handleMove = (id: string, x: number, y: number) => {
+  // ── Move ──────────────────────────────────────────────────────────────────
+  const handleMove = async (id: string, x: number, y: number) => {
+    const d = Math.sqrt(x * x + y * y);
+    const newRing: Ring = d <= INNER_SAFE_RADIUS ? 'inner' : 'outer';
+    const oldRing = prevRingRef.current[id];
+
     setNodes(prev =>
-      prev.map(n => {
-        if (n.user.id !== id) return n;
-        const d = Math.sqrt(x * x + y * y);
-        const ring: Ring = d <= INNER_SAFE_RADIUS ? 'inner' : 'outer';
-        return { ...n, x, y, ring };
-      })
+      prev.map(n => n.user.id !== id ? n : { ...n, x, y, ring: newRing })
     );
+
+    if (newRing !== oldRing) {
+      prevRingRef.current[id] = newRing;
+      try {
+        await updateCircleRing(id, newRing);
+      } catch {
+        console.error('Failed to update ring in DB — rolling back');
+        setNodes(prev =>
+          prev.map(n => n.user.id !== id ? n : { ...n, ring: oldRing })
+        );
+        prevRingRef.current[id] = oldRing;
+      }
+    }
   };
 
   const handleSearch = (val: string) => {
@@ -617,14 +585,9 @@ export default function CirclePage() {
   const handleTabPress = (tab: NavTabId) => {
     setActiveTab(tab);
     switch (tab) {
-      case 'home':
-        router.push('/homepage');
-        break;
-      case 'profile':
-        router.push('/myprofile');
-        break;
-      default:
-        break;
+      case 'home': router.push('/homepage'); break;
+      case 'profile': router.push('/myprofile'); break;
+      default: break;
     }
   };
 
@@ -644,34 +607,48 @@ export default function CirclePage() {
           {isEditing && <Text style={s.editTopLabel}>EDIT ORBIT</Text>}
           <Text style={s.title}>{isEditing ? 'your orbit' : 'your circle'}</Text>
 
-          <View style={{ marginTop: 24, marginBottom: 20 }}>
-            <OrbitView
-              nodes={nodes}
-              isEditing={isEditing}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onRemove={handleRemove}
-              onMove={handleMove}
-            />
-          </View>
-
-          {isEditing ? (
-            <View style={{ width: '100%', maxWidth: 320, paddingHorizontal: 24, alignItems: 'center' }}>
-              <Text style={s.instrText}>TAP AND DRAG TO MOVE PEOPLE WITHIN RINGS</Text>
-              <Text style={s.instrText}>TAP AND HOLD A PERSON FOR MORE OPTIONS</Text>
-              <Pressable style={s.saveBtn} onPress={stopEditing}>
-                <Text style={s.saveTxt}>SAVE CHANGES</Text>
-              </Pressable>
-            </View>
+          {loading ? (
+            <Text style={{ color: '#aaa', fontSize: 13, marginTop: 40 }}>Loading your circle...</Text>
+          ) : error ? (
+            <Text style={{ color: '#f00', fontSize: 13, marginTop: 40 }}>{error}</Text>
           ) : (
-            <View style={s.actions}>
-              <Pressable onPress={() => setModal('addFriend')}>
-                <Text style={s.linkBtn}>+ ADD FRIEND</Text>
-              </Pressable>
-              <Pressable onPress={() => setIsEditing(true)}>
-                <Text style={s.linkBtn}>✏ EDIT ORBIT</Text>
-              </Pressable>
-            </View>
+            <>
+              <View style={{ marginTop: 24, marginBottom: 20 }}>
+                <OrbitView
+                  nodes={nodes}
+                  isEditing={isEditing}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onRemove={handleRemove}
+                  onMove={handleMove}
+                />
+              </View>
+
+              {nodes.length === 0 && !isEditing && (
+                <Text style={{ color: '#bbb', fontSize: 13, textAlign: 'center' }}>
+                  Your orbit is empty.{'\n'}Add friends to get started!
+                </Text>
+              )}
+
+              {isEditing ? (
+                <View style={{ width: '100%', maxWidth: 320, paddingHorizontal: 24, alignItems: 'center' }}>
+                  <Text style={s.instrText}>TAP AND DRAG TO MOVE PEOPLE WITHIN RINGS</Text>
+                  <Text style={s.instrText}>TAP AND HOLD A PERSON FOR MORE OPTIONS</Text>
+                  <Pressable style={s.saveBtn} onPress={stopEditing}>
+                    <Text style={s.saveTxt}>SAVE CHANGES</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={s.actions}>
+                  <Pressable onPress={() => setModal('addFriend')}>
+                    <Text style={s.linkBtn}>+ ADD FRIEND</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setIsEditing(true)}>
+                    <Text style={s.linkBtn}>✏ EDIT ORBIT</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -683,12 +660,30 @@ export default function CirclePage() {
       />
 
       <AddSidequestSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />
-      <AddFriendModal visible={modal === 'addFriend'} onClose={() => setModal('none')} onByPhone={() => setModal('addByPhone')} onFromContacts={() => setModal('none')} />
-      <AddByPhoneModal visible={modal === 'addByPhone'} onClose={() => setModal('none')} onBack={() => setModal('addFriend')} onSearch={handleSearch} />
-      <NotOnTetherModal visible={modal === 'notOnTether'} name={searchedName} onClose={() => setModal('none')} onBack={() => setModal('addByPhone')} />
+      <AddFriendModal
+        visible={modal === 'addFriend'}
+        onClose={() => setModal('none')}
+        onByPhone={() => setModal('addByPhone')}
+        onFromContacts={() => setModal('none')}
+      />
+      <AddByPhoneModal
+        visible={modal === 'addByPhone'}
+        onClose={() => setModal('none')}
+        onBack={() => setModal('addFriend')}
+        onSearch={handleSearch}
+      />
+      <NotOnTetherModal
+        visible={modal === 'notOnTether'}
+        name={searchedName}
+        onClose={() => setModal('none')}
+        onBack={() => setModal('addByPhone')}
+      />
     </View>
   );
 }
+
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
   page: { alignItems: 'center', paddingBottom: 140 },
@@ -716,15 +711,9 @@ const s = StyleSheet.create({
 const sh = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: SHEET_HEIGHT,
-    backgroundColor: '#111',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: SHEET_HEIGHT, backgroundColor: '#111',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
   },
   handleArea: { height: 40, alignItems: 'center', justifyContent: 'center' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#333' },

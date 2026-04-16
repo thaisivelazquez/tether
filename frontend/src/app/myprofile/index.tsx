@@ -10,6 +10,7 @@ import React, {
 import {
   Animated,
   Dimensions,
+  Image,
   Modal,
   PanResponder,
   Pressable,
@@ -21,14 +22,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import EditButton from '../../../components/myprofile/editbutton.svg';
-import Pfp from '../../../components/myprofile/pfp.svg';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
+
+const EditButtonImg = require('../../../components/myprofile/editbutton.png');
+const PfpImg = require('../../../components/myprofile/pfp.png');
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
+
 
 type Sidequest = {
   id: string;
@@ -38,6 +41,7 @@ type Sidequest = {
   attendees: any[];
   createdAt: string;
 };
+
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -54,14 +58,13 @@ export default function ProfilePage() {
   const [birthday, setBirthday] = useState('');
   const [bio, setBio] = useState('');
 
-  // Re-fetches every time screen comes into focus (e.g. returning from edit.tsx)
   useFocusEffect(
     useCallback(() => {
       const loadUser = async () => {
         try {
           const id = await AsyncStorage.getItem('user_id');
           if (!id) return;
-          const res = await fetch(`http://localhost:3000/users/${id}`);
+          const res = await fetch(`http:///users/${id}`);
           if (res.ok) {
             const data = await res.json();
             setFirstName(data.user.first_name || '');
@@ -111,13 +114,21 @@ export default function ProfilePage() {
               onPress={() => router.push('/myprofile/edit')}
               style={styles.editIconWrap}
             >
-              <EditButton width={22} height={22} />
+              <Image
+                source={EditButtonImg}
+                style={{ width: 22, height: 22 }}
+                resizeMode="contain"
+              />
             </Pressable>
           </View>
 
           {/* Profile */}
           <View style={styles.hero}>
-            <Pfp width={136} height={136} />
+            <Image
+              source={PfpImg}
+              style={{ width: 136, height: 136 }}
+              resizeMode="contain"
+            />
 
             <Text style={styles.name}>
               {firstName} {lastName}
@@ -133,7 +144,6 @@ export default function ProfilePage() {
                 🎂 {formatBirthday(birthday)}
               </Text>
             </View>
-            
 
             <Pressable style={styles.shareBtn}>
               <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
@@ -173,6 +183,7 @@ export default function ProfilePage() {
     </View>
   );
 }
+
 
 function AddSidequestSheet({
   visible,
@@ -233,6 +244,7 @@ function AddSidequestSheet({
     </Modal>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
@@ -306,6 +318,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
+
 
 const localStyles = StyleSheet.create({
   backdrop: {

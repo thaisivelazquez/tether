@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   SafeAreaView,
@@ -14,12 +15,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Pfp from '../../../components/myprofile/pfp.svg';
+const PfpImg = require('../../../components/myprofile/pfp.png');
 
 const getBaseUrl = () =>
   Platform.OS === 'web'
-    ? 'http://localhost:3000'
+    ? 'http://'
     : 'http://172.19.3.53:3000';
+
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -43,13 +45,13 @@ export default function EditProfilePage() {
         const res = await fetch(`${getBaseUrl()}/users/${id}`);
         if (res.ok) {
           const data = await res.json();
-const user = data.user;
+          const user = data.user;
 
-setNamef(user.first_name ?? '');
-setNamel(user.last_name ?? '');
-setStatus(user.bio ?? '');        // if you add this field
-setLocation(user.location ?? '');
-setBirthday(user.birthdate ?? '');
+          setNamef(user.first_name ?? '');
+          setNamel(user.last_name ?? '');
+          setStatus(user.bio ?? '');
+          setLocation(user.location ?? '');
+          setBirthday(user.birthdate ?? '');
         }
       } catch (err) {
         console.error('[loadProfile]', err);
@@ -60,15 +62,14 @@ setBirthday(user.birthdate ?? '');
   }, []);
 
   const handleSave = async () => {
-  console.log('🔵 handleSave fired');
-  console.log('currentUserId:', currentUserId);
-  console.log('payload:', { fname, lname, status, location, birthday });
+    console.log('🔵 handleSave fired');
+    console.log('currentUserId:', currentUserId);
+    console.log('payload:', { fname, lname, status, location, birthday });
 
-  if (!currentUserId) {
-    Alert.alert('Error', 'User not loaded. Try again.');
-    return;
-  }
-  // ... rest of the function
+    if (!currentUserId) {
+      Alert.alert('Error', 'User not loaded. Try again.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -76,12 +77,12 @@ setBirthday(user.birthdate ?? '');
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-  first_name: fname,
-  last_name: lname,
-  bio: status,         
-  location,
-  birthdate: birthday, 
-}),
+          first_name: fname,
+          last_name: lname,
+          bio: status,
+          location,
+          birthdate: birthday,
+        }),
       });
 
       const text = await res.text();
@@ -104,9 +105,9 @@ setBirthday(user.birthdate ?? '');
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-       <Pressable onPress={() => router.replace('/myprofile')}>
-  <Text style={styles.headerAction}>Cancel</Text>
-</Pressable>
+        <Pressable onPress={() => router.replace('/myprofile')}>
+          <Text style={styles.headerAction}>Cancel</Text>
+        </Pressable>
 
         <Text style={styles.headerTitle}>Edit Profile</Text>
 
@@ -122,7 +123,11 @@ setBirthday(user.birthdate ?? '');
         contentContainerStyle={{ paddingBottom: 36 }}
       >
         <View style={styles.topSection}>
-          <Pfp width={118} height={118} />
+          <Image
+            source={PfpImg}
+            style={{ width: 118, height: 118 }}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.form}>

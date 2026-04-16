@@ -1,16 +1,16 @@
 import { Href, useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import AddEvent from './addevent.svg';
-import BellUnselected from './bellunselected.svg';
-import CircleiconSelected from './circleiconselected.svg';
-import CircleiconUnselected from './circleiconunselected.svg';
-import HomeiconSelected from './homeiconselected.svg';
-import HomeiconUnselected from './homeiconunselected.svg';
-import PficonSelected from './pficonselected.svg';
-import PficonUnselected from './pficonunselected.svg';
+const AddEventImg = require('./addevent.png');
+const BellUnselectedImg = require('./bellunselected.png');
+const CircleiconSelectedImg = require('./circleiconselected.png');
+const CircleiconUnselectedImg = require('./circleiconunselected.png');
+const HomeiconSelectedImg = require('./homeiconselected.png');
+const HomeiconUnselectedImg = require('./homeiconunselected.png');
+const PficonSelectedImg = require('./pficonselected.png');
+const PficonUnselectedImg = require('./pficonunselected.png');
 
 export type NavTabId = 'home' | 'circle' | 'add' | 'bell' | 'profile';
 
@@ -85,11 +85,19 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
         }}
       >
         <Pressable onPress={() => handleTabPress('home')} style={{ padding: 6 }}>
-          {activeTab === 'home' ? <HomeiconSelected /> : <HomeiconUnselected />}
+          <Image
+            source={activeTab === 'home' ? HomeiconSelectedImg : HomeiconUnselectedImg}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
         </Pressable>
 
         <Pressable onPress={() => handleTabPress('circle')} style={{ padding: 6 }}>
-          {activeTab === 'circle' ? <CircleiconSelected /> : <CircleiconUnselected />}
+          <Image
+            source={activeTab === 'circle' ? CircleiconSelectedImg : CircleiconUnselectedImg}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
         </Pressable>
 
         <Pressable
@@ -103,15 +111,27 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
             justifyContent: 'center',
           }}
         >
-          <AddEvent />
+          <Image
+            source={AddEventImg}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
         </Pressable>
 
         <Pressable onPress={() => handleTabPress('bell')} style={{ padding: 6 }}>
-          <BellUnselected />
+          <Image
+            source={BellUnselectedImg}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
         </Pressable>
 
         <Pressable onPress={() => handleTabPress('profile')} style={{ padding: 6 }}>
-          {activeTab === 'profile' ? <PficonSelected /> : <PficonUnselected />}
+          <Image
+            source={activeTab === 'profile' ? PficonSelectedImg : PficonUnselectedImg}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
         </Pressable>
       </View>
     </View>

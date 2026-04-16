@@ -1,31 +1,30 @@
-import { useRouter } from "expo-router"; // 👈 add this
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, useWindowDimensions, View } from "react-native";
+import { Animated, Image, Pressable, useWindowDimensions, View } from "react-native";
 import { styles } from "../../../components/tut/tutstyles";
 
-import Slide1 from "../../../components/tut/slide1.svg";
-import Slide2 from "../../../components/tut/slide2.svg";
-import Slide3 from "../../../components/tut/slide3.svg";
-import Slide4 from "../../../components/tut/slide4.svg";
-import Slide5 from "../../../components/tut/slide5.svg";
-import Slide6 from "../../../components/tut/slide6.svg";
-import Slide7 from "../../../components/tut/slide7.svg";
+const Slide1Img = require('../../../components/tut/slide1.png');
+const Slide2Img = require('../../../components/tut/slide2.png');
+const Slide3Img = require('../../../components/tut/slide3.png');
+const Slide4Img = require('../../../components/tut/slide4.png');
+const Slide5Img = require('../../../components/tut/slide5.png');
+const Slide6Img = require('../../../components/tut/slide6.png');
+const Slide7Img = require('../../../components/tut/slide7.png');
 
-const SLIDES = [Slide1, Slide2, Slide7, Slide6, Slide3, Slide5, Slide4];
+const SLIDES = [Slide1Img, Slide2Img, Slide7Img, Slide6Img, Slide3Img, Slide5Img, Slide4Img];
 
 export default function TutPage() {
   const { width, height } = useWindowDimensions();
   const [currentSlide, setCurrentSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const router = useRouter(); // 👈 init router
+  const router = useRouter();
 
   const handleTap = () => {
     if (currentSlide < SLIDES.length - 1) {
       fadeAnim.setValue(0);
       setCurrentSlide((prev) => prev + 1);
     } else {
-      // 👇 navigate when last slide is reached
       router.push("/info");
     }
   };
@@ -38,7 +37,7 @@ export default function TutPage() {
     }).start();
   }, [currentSlide]);
 
-  const CurrentSlide = SLIDES[currentSlide];
+  const currentSource = SLIDES[currentSlide];
 
   return (
     <Pressable style={styles.screen} onPress={handleTap}>
@@ -52,7 +51,11 @@ export default function TutPage() {
         }}
       >
         <Animated.View style={{ opacity: fadeAnim, width, height }}>
-          <CurrentSlide width={width} height={height} />
+          <Image
+            source={currentSource}
+            style={{ width, height }}
+            resizeMode="contain"
+          />
         </Animated.View>
       </View>
     </Pressable>

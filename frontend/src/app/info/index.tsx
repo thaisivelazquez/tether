@@ -92,7 +92,7 @@ export default function InfoPage() {
         if (id) {
           setUserId(id);
           // Now fetch the rest of the profile if you want to pre-fill
-          const res = await fetch(`http://localhost:3000/users/${id}`);
+          const res = await fetch(`http:///users/${id}`);
           if (res.ok) {
             const data = await res.json();
             setFirstName(data.user.first_name || "");
@@ -127,7 +127,7 @@ export default function InfoPage() {
     }
 
     try {
-      const res = await fetch(`http://localhost:3000/users/${userId}`, {
+      const res = await fetch(`http:///users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

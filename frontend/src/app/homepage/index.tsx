@@ -7,6 +7,7 @@ import {
   Dimensions,
   Easing,
   FlatList,
+  Image,
   Modal,
   PanResponder,
   Platform,
@@ -20,23 +21,27 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Allbutton from '../../../components/homepage/allbuttons.svg';
-import Closefriendsbutton from '../../../components/homepage/closefriendsbutton.svg';
 import { styles } from '../../../components/homepage/homepagestyles';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
+
+const AllbuttonImg = require('../../../components/homepage/allbuttons.png');
+const ClosefriendsButtonImg = require('../../../components/homepage/closefriendsbutton.png');
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+
 
 type Attendee = {
   id: string;
   name: string;
   location: string;
 };
+
 
 type Sidequest = {
   id: string;
@@ -55,18 +60,23 @@ type Sidequest = {
   maxAttendees: number;
 };
 
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 const formatTime = (d: Date) =>
   d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+
 const formatDate = (d: Date) =>
   d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
+
 const getBaseUrl = () =>
   Platform.OS === 'web'
-    ? 'http://localhost:3000'
+    ? 'http://172.19.3.53:3000'
     : 'http://172.19.3.53:3000';
+
 
 /** "2026-04-20T18:00:00.000Z" → { date: "2026-04-20", time: "18:00" } in local time */
 function isoToDateTimeParts(iso: string): { date: string; time: string } {
@@ -83,12 +93,15 @@ function isoToDateTimeParts(iso: string): { date: string; time: string } {
   }
 }
 
+
 /** "2026-04-20" + "18:00" → ISO string */
 function partsToIso(date: string, time: string): string {
   return new Date(`${date}T${time}:00`).toISOString();
 }
 
+
 // ─── SidequestCard ────────────────────────────────────────────────────────────
+
 
 function SidequestCard({
   sidequest,
@@ -100,6 +113,7 @@ function SidequestCard({
   const start = new Date(sidequest.startTime);
   const end = new Date(sidequest.endTime);
   const isCloseFriends = sidequest.circleStatus === 'close-friends';
+
 
   return (
     <Pressable
@@ -115,7 +129,9 @@ function SidequestCard({
         </View>
       </View>
 
+
       <Text style={cardStyles.desc}>{sidequest.description || 'No description provided'}</Text>
+
 
       <View style={cardStyles.metaRow}>
         <Text style={cardStyles.meta}>📅 {formatDate(start)}</Text>
@@ -130,6 +146,7 @@ function SidequestCard({
         <Text style={cardStyles.meta}>👥 {sidequest.attendees.length}/{sidequest.maxAttendees}</Text>
       </View>
 
+
       {sidequest.attendees.length > 0 && (
         <View style={{ marginTop: 8 }}>
           <Text style={cardStyles.meta}>going:</Text>
@@ -139,13 +156,15 @@ function SidequestCard({
         </View>
       )}
 
+
       <Text style={cardStyles.poster}>posted by {sidequest.postedBy.name}</Text>
     </Pressable>
   );
 }
 
+
 // ─── EditSidequestForm ────────────────────────────────────────────────────────
-// Mirrors CreateSidequestForm exactly, but pre-filled and calls PATCH.
+
 
 function EditSidequestForm({
   sidequest,
@@ -160,8 +179,10 @@ function EditSidequestForm({
 }) {
   const insets = useSafeAreaInsets();
 
+
   const startParts = isoToDateTimeParts(sidequest.startTime);
   const endParts = isoToDateTimeParts(sidequest.endTime);
+
 
   const [title, setTitle] = useState(sidequest.title ?? '');
   const [fromDate, setFromDate] = useState(startParts.date);
@@ -175,6 +196,7 @@ function EditSidequestForm({
   const [openVis, setOpenVis] = useState(false);
   const [saving, setSaving] = useState(false);
 
+
   const handleSave = async () => {
     if (!currentUserId) {
       Alert.alert('Error', 'User not loaded. Try again.');
@@ -184,6 +206,7 @@ function EditSidequestForm({
       Alert.alert('Validation', 'Title cannot be empty.');
       return;
     }
+
 
     const maxNum = Math.max(1, parseInt(maxAtt, 10) || 1);
     let startIso: string, endIso: string;
@@ -198,6 +221,7 @@ function EditSidequestForm({
       Alert.alert('Validation', 'End time must be after start time.');
       return;
     }
+
 
     setSaving(true);
     try {
@@ -218,13 +242,16 @@ function EditSidequestForm({
         }
       );
 
+
       const text = await res.text();
       console.log('✏️ PATCH RESPONSE:', res.status, text);
+
 
       if (!res.ok) {
         Alert.alert('Error', text || 'Update failed');
         return;
       }
+
 
       onUpdated({
         ...sidequest,
@@ -245,6 +272,7 @@ function EditSidequestForm({
     }
   };
 
+
   return (
     <ScrollView
       style={[formStyles.flex, { backgroundColor: '#111' }]}
@@ -254,6 +282,7 @@ function EditSidequestForm({
       <View style={formStyles.handle} />
       <Text style={formStyles.dragLabel}>EDIT SIDEQUEST</Text>
 
+
       <TextInput
         style={formStyles.bigInput}
         placeholder="share what you're up to..."
@@ -261,6 +290,7 @@ function EditSidequestForm({
         value={title}
         onChangeText={setTitle}
       />
+
 
       <Text style={formStyles.lab}>FROM</Text>
       <View style={formStyles.row}>
@@ -280,6 +310,7 @@ function EditSidequestForm({
         />
       </View>
 
+
       <Text style={formStyles.lab}>TO</Text>
       <View style={formStyles.row}>
         <TextInput
@@ -298,6 +329,7 @@ function EditSidequestForm({
         />
       </View>
 
+
       <TextInput
         style={formStyles.input}
         placeholder="📍 location"
@@ -305,6 +337,7 @@ function EditSidequestForm({
         value={location}
         onChangeText={setLocation}
       />
+
 
       <TextInput
         style={[formStyles.input, formStyles.multiline]}
@@ -315,6 +348,7 @@ function EditSidequestForm({
         multiline
       />
 
+
       <Text style={formStyles.lab}>MAX ATTENDEES</Text>
       <TextInput
         style={formStyles.input}
@@ -324,12 +358,14 @@ function EditSidequestForm({
         onChangeText={setMaxAtt}
       />
 
+
       <Text style={formStyles.lab}>VISIBILITY</Text>
       <Pressable style={formStyles.input} onPress={() => setOpenVis((v) => !v)}>
         <Text style={{ color: '#fff' }}>
           {vis === 'everyone' ? 'Everyone' : 'Close Friends'}
         </Text>
       </Pressable>
+
 
       {openVis && (
         <View style={formStyles.dropdown}>
@@ -342,6 +378,7 @@ function EditSidequestForm({
         </View>
       )}
 
+
       <View style={{ marginTop: 24, gap: 10 }}>
         <Pressable
           onPress={handleSave}
@@ -350,6 +387,7 @@ function EditSidequestForm({
         >
           <Text style={formStyles.btnText}>{saving ? 'saving...' : 'save changes →'}</Text>
         </Pressable>
+
 
         <Pressable
           onPress={onClose}
@@ -362,7 +400,9 @@ function EditSidequestForm({
   );
 }
 
+
 // ─── SidequestDetailModal ─────────────────────────────────────────────────────
+
 
 function SidequestDetailModal({
   sidequest,
@@ -381,15 +421,17 @@ function SidequestDetailModal({
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
 
+
   const isOwner = useMemo(() => {
     if (!sidequest || !currentUserId) return false;
     return String(sidequest.postedBy?.id) === String(currentUserId);
   }, [sidequest, currentUserId]);
 
-  // Reset editing mode when a different sidequest is opened
+
   useEffect(() => {
     setEditing(false);
   }, [sidequest?.id]);
+
 
   useEffect(() => {
     if (sidequest) {
@@ -398,6 +440,7 @@ function SidequestDetailModal({
       translateY.setValue(SCREEN_HEIGHT);
     }
   }, [sidequest]);
+
 
   const panResponder = useRef(
     PanResponder.create({
@@ -413,6 +456,7 @@ function SidequestDetailModal({
       },
     })
   ).current;
+
 
   const handleDelete = async () => {
     if (!sidequest || !currentUserId) {
@@ -439,22 +483,26 @@ function SidequestDetailModal({
     }
   };
 
+
   if (!sidequest) return null;
 
+
   const isCloseFriends = sidequest.circleStatus === 'close-friends';
+
 
   return (
     <Modal transparent visible={!!sidequest} animationType="none">
       <View style={{ flex: 1 }}>
         <Pressable style={localStyles.backdrop} onPress={onClose} />
 
+
         <Animated.View style={[localStyles.sheetContainer, { transform: [{ translateY }] }]}>
           <View style={localStyles.handleArea} {...panResponder.panHandlers}>
             <View style={localStyles.handle} />
           </View>
 
+
           {editing && sidequest ? (
-            /* ── EDIT MODE: same form as create ── */
             <EditSidequestForm
               sidequest={sidequest}
               currentUserId={currentUserId}
@@ -465,20 +513,22 @@ function SidequestDetailModal({
               }}
             />
           ) : (
-            /* ── VIEW MODE ── */
             <ScrollView
               contentContainerStyle={{ paddingBottom: 140, flexGrow: 1, paddingHorizontal: 16, paddingTop: 12 }}
             >
               <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700' }}>{sidequest.title}</Text>
               <Text style={{ color: '#777', marginTop: 4 }}>posted by {sidequest.postedBy.name}</Text>
 
+
               <View style={{ marginTop: 10 }}>
                 <Text style={{ color: '#aaa' }}>{isCloseFriends ? '🔒 close friends' : '🌍 everyone'}</Text>
               </View>
 
+
               <Text style={{ color: '#ccc', marginTop: 16, lineHeight: 20 }}>
                 {sidequest.description || 'No description provided'}
               </Text>
+
 
               <View style={{ marginTop: 20 }}>
                 <Text style={{ color: '#fff', fontWeight: '600' }}>When</Text>
@@ -488,10 +538,12 @@ function SidequestDetailModal({
                 </Text>
               </View>
 
+
               <View style={{ marginTop: 20 }}>
                 <Text style={{ color: '#fff', fontWeight: '600' }}>Location</Text>
                 <Text style={{ color: '#aaa', marginTop: 4 }}>📍 {sidequest.location || 'No location set'}</Text>
               </View>
+
 
               <View style={{ marginTop: 20 }}>
                 <Text style={{ color: '#fff', fontWeight: '600' }}>
@@ -505,6 +557,7 @@ function SidequestDetailModal({
                   ))
                 )}
               </View>
+
 
               {isOwner && (
                 <View style={{ marginTop: 30 }}>
@@ -533,11 +586,14 @@ function SidequestDetailModal({
   );
 }
 
+
 // ─── HomePage ─────────────────────────────────────────────────────────────────
+
 
 export default function HomePage() {
   const insets = useSafeAreaInsets();
   const whiteOverlay = useRef(new Animated.Value(1)).current;
+
 
   const [filter, setFilter] = useState<'all' | 'close-friends'>('all');
   const [activeTab, setActiveTab] = useState<NavTabId>('home');
@@ -546,9 +602,11 @@ export default function HomePage() {
   const [selectedSidequest, setSelectedSidequest] = useState<Sidequest | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+
   useEffect(() => {
     AsyncStorage.getItem('user_id').then((id) => setCurrentUserId(id));
   }, []);
+
 
   const fetchSidequests = useCallback(async () => {
     try {
@@ -566,7 +624,9 @@ export default function HomePage() {
     }
   }, []);
 
+
   useFocusEffect(useCallback(() => { fetchSidequests(); }, [fetchSidequests]));
+
 
   useEffect(() => {
     Animated.timing(whiteOverlay, {
@@ -577,25 +637,30 @@ export default function HomePage() {
     }).start();
   }, []);
 
+
   const filteredData = useMemo(() => {
     if (filter === 'close-friends') return sidequests.filter((s) => s.circleStatus === 'close-friends');
     return sidequests;
   }, [filter, sidequests]);
+
 
   const handleSidequestCreated = useCallback(() => {
     setSheetOpen(false);
     fetchSidequests();
   }, [fetchSidequests]);
 
+
   function handleSidequestDeleted(deletedId: string) {
     setSidequests((prev) => prev.filter((s) => s.id !== deletedId));
     setSelectedSidequest(null);
   }
 
+
   function handleSidequestUpdated(updated: Sidequest) {
     setSidequests((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
     setSelectedSidequest(updated);
   }
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -605,13 +670,14 @@ export default function HomePage() {
             <Text style={styles.formHeadline}>what's everyone{'\n'}up to this week?</Text>
             <View style={styles.buttonRow}>
               <Pressable onPress={() => setFilter('all')} style={{ opacity: filter === 'all' ? 1 : 0.5 }}>
-                <Allbutton style={styles.allfriendsBtn} />
+                <Image source={AllbuttonImg} style={styles.allfriendsBtn} resizeMode="contain" />
               </Pressable>
               <Pressable onPress={() => setFilter('close-friends')} style={{ opacity: filter === 'close-friends' ? 1 : 0.5 }}>
-                <Closefriendsbutton style={styles.closefriendsBtn} />
+                <Image source={ClosefriendsButtonImg} style={styles.closefriendsBtn} resizeMode="contain" />
               </Pressable>
             </View>
           </View>
+
 
           <FlatList
             data={filteredData}
@@ -628,6 +694,7 @@ export default function HomePage() {
         </View>
       </SafeAreaView>
 
+
       <SidequestDetailModal
         sidequest={selectedSidequest}
         currentUserId={currentUserId}
@@ -636,13 +703,16 @@ export default function HomePage() {
         onUpdated={handleSidequestUpdated}
       />
 
+
       <AddSidequestSheet
         visible={sheetOpen}
         onClose={handleSidequestCreated}
         onCancel={() => setSheetOpen(false)}
       />
 
+
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} onAddPress={() => setSheetOpen(true)} />
+
 
       <Animated.View
         pointerEvents="none"
@@ -652,7 +722,9 @@ export default function HomePage() {
   );
 }
 
+
 // ─── AddSidequestSheet ────────────────────────────────────────────────────────
+
 
 function AddSidequestSheet({
   visible,
@@ -665,9 +737,11 @@ function AddSidequestSheet({
 }) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
+
   useEffect(() => {
     Animated.spring(translateY, { toValue: visible ? 0 : SHEET_HEIGHT, useNativeDriver: true, bounciness: 4 }).start();
   }, [visible]);
+
 
   const panResponder = useRef(
     PanResponder.create({
@@ -684,6 +758,7 @@ function AddSidequestSheet({
     })
   ).current;
 
+
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onCancel}>
       <Pressable style={localStyles.backdrop} onPress={onCancel} />
@@ -697,7 +772,9 @@ function AddSidequestSheet({
   );
 }
 
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
+
 
 const localStyles = StyleSheet.create({
   whiteOverlay: {
@@ -717,6 +794,7 @@ const localStyles = StyleSheet.create({
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#333' },
 });
 
+
 const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: '#1a1a1a', borderRadius: 16, padding: 16,
@@ -735,7 +813,7 @@ const cardStyles = StyleSheet.create({
   poster: { color: '#555', fontSize: 11, marginTop: 8, fontStyle: 'italic' },
 });
 
-// Shared between EditSidequestForm and mirrors create.tsx styles exactly
+
 const formStyles = StyleSheet.create({
   flex: { flex: 1 },
   dragLabel: {
@@ -816,6 +894,7 @@ const formStyles = StyleSheet.create({
   },
   btnCancelText: { color: '#777', fontSize: 16 },
 });
+
 
 const detailStyles = StyleSheet.create({
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
