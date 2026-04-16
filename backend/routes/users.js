@@ -117,25 +117,67 @@ router.get("/by-phone/:phone", async (req, res) => {
 // ------------------------------------
 router.patch("/:id", async (req, res) => {
   const { id } = req.params;
-  const { first_name, last_name, birthdate, location, affiliation } = req.body;
+  const { first_name, last_name, birthdate, location, affiliation, bio } = req.body;
 
   try {
-    const { rows } = await pool.query(
-      `UPDATE users
-       SET first_name = $1,
-           last_name = $2,
-           birthdate = $3,
-           location = $4,
-           affiliation = $5,
-           last_used = NOW()
-       WHERE id = $6
-       RETURNING *`,
-      [first_name, last_name, birthdate, location, affiliation, id]
-    );
+    const fields = [];
+    const values = [];
+    let index = 1;
 
-    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+    if (first_name !== undefined) {
+      fields.push(`first_name = $${index++}`);
+      values.push(first_name.trim());
+    }
+
+    if (last_name !== undefined) {
+      fields.push(`last_name = $${index++}`);
+      values.push(last_name.trim());
+    }
+
+    if (birthdate !== undefined) {
+      fields.push(`birthdate = $${index++}`);
+      values.push(birthdate);
+    }
+
+    if (location !== undefined) {
+      fields.push(`location = $${index++}`);
+      values.push(location);
+    }
+
+    if (affiliation !== undefined) {
+      fields.push(`affiliation = $${index++}`);
+      values.push(affiliation);
+    }
+    if (bio !== undefined) {
+  fields.push(`bio = $${index++}`);
+  values.push(bio);
+}
+
+    // If nothing to update
+    if (fields.length === 0) {
+      return res.status(400).json({ error: "No fields provided to update." });
+    }
+
+    // Always update last_used
+    fields.push(`last_used = NOW()`);
+
+    const query = `
+      UPDATE users
+      SET ${fields.join(", ")}
+      WHERE id = $${index}
+      RETURNING *
+    `;
+
+    values.push(id);
+
+    const { rows } = await pool.query(query, values);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found." });
+    }
 
     return res.json({ user: rows[0] });
+
   } catch (err) {
     console.error("DB error:", err.message);
     return res.status(500).json({ error: "Server error." });

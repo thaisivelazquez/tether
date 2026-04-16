@@ -1,6 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -13,27 +16,104 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Pfp from '../../../components/myprofile/pfp.svg';
 
+const getBaseUrl = () =>
+  Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.3.53:3000';
+
 export default function EditProfilePage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [fname, setNamef] = useState('Jane');
-  const [lname, setNamel] = useState('Doe');
-  const [status, setStatus] = useState("craving JJ's french toast...");
-  const [location, setLocation] = useState('Manhattan, NY');
-  const [birthday, setBirthday] = useState('January 21');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [fname, setNamef] = useState('');
+  const [lname, setNamel] = useState('');
+  const [status, setStatus] = useState('');
+  const [location, setLocation] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const id = await AsyncStorage.getItem('user_id');
+      if (!id) return;
+      setCurrentUserId(id);
+
+      try {
+        const res = await fetch(`${getBaseUrl()}/users/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+const user = data.user;
+
+setNamef(user.first_name ?? '');
+setNamel(user.last_name ?? '');
+setStatus(user.bio ?? '');        // if you add this field
+setLocation(user.location ?? '');
+setBirthday(user.birthdate ?? '');
+        }
+      } catch (err) {
+        console.error('[loadProfile]', err);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleSave = async () => {
+  console.log('🔵 handleSave fired');
+  console.log('currentUserId:', currentUserId);
+  console.log('payload:', { fname, lname, status, location, birthday });
+
+  if (!currentUserId) {
+    Alert.alert('Error', 'User not loaded. Try again.');
+    return;
+  }
+  // ... rest of the function
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${getBaseUrl()}/users/${currentUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+  first_name: fname,
+  last_name: lname,
+  bio: status,         
+  location,
+  birthdate: birthday, 
+}),
+      });
+
+      const text = await res.text();
+      console.log('✏️ PATCH /myprofile:', res.status, text);
+
+      if (!res.ok) {
+        Alert.alert('Error', text || 'Update failed');
+        return;
+      }
+
+      router.back();
+    } catch (err) {
+      console.error('[handleSave]', err);
+      Alert.alert('Error', 'Network error while saving profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.headerAction}>Cancel</Text>
-        </Pressable>
+       <Pressable onPress={() => router.replace('/myprofile')}>
+  <Text style={styles.headerAction}>Cancel</Text>
+</Pressable>
 
         <Text style={styles.headerTitle}>Edit Profile</Text>
 
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.headerAction}>Save</Text>
+        <Pressable onPress={handleSave} disabled={saving}>
+          <Text style={[styles.headerAction, saving && { opacity: 0.4 }]}>
+            {saving ? 'Saving...' : 'Save'}
+          </Text>
         </Pressable>
       </View>
 
@@ -43,9 +123,6 @@ export default function EditProfilePage() {
       >
         <View style={styles.topSection}>
           <Pfp width={118} height={118} />
-          {/* <Pressable style={styles.photoButton}>
-            <Text style={styles.photoButtonText}>Change Photo</Text>
-          </Pressable> */}
         </View>
 
         <View style={styles.form}>
@@ -55,17 +132,18 @@ export default function EditProfilePage() {
               value={fname}
               onChangeText={setNamef}
               style={styles.input}
-              placeholder="Name"
+              placeholder="First name"
               placeholderTextColor="#9a9a9a"
             />
           </View>
-           <View style={styles.field}>
+
+          <View style={styles.field}>
             <Text style={styles.label}>Last Name</Text>
             <TextInput
               value={lname}
               onChangeText={setNamel}
               style={styles.input}
-              placeholder="Name"
+              placeholder="Last name"
               placeholderTextColor="#9a9a9a"
             />
           </View>
@@ -76,7 +154,7 @@ export default function EditProfilePage() {
               value={status}
               onChangeText={setStatus}
               style={[styles.input, styles.multiline]}
-              placeholder="Status"
+              placeholder="What's on your mind?"
               placeholderTextColor="#9a9a9a"
               multiline
             />
@@ -88,7 +166,7 @@ export default function EditProfilePage() {
               value={location}
               onChangeText={setLocation}
               style={styles.input}
-              placeholder="Location"
+              placeholder="Where are you based?"
               placeholderTextColor="#9a9a9a"
             />
           </View>
@@ -99,11 +177,10 @@ export default function EditProfilePage() {
               value={birthday}
               onChangeText={setBirthday}
               style={styles.input}
-              placeholder="Birthday"
+              placeholder="e.g. January 21"
               placeholderTextColor="#9a9a9a"
             />
           </View>
-           
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -115,7 +192,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-
   header: {
     paddingHorizontal: 18,
     paddingVertical: 14,
@@ -133,7 +209,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6f63ff',
   },
-
   topSection: {
     alignItems: 'center',
     paddingTop: 18,
@@ -153,7 +228,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4d453f',
   },
-
   form: {
     paddingHorizontal: 18,
     gap: 16,

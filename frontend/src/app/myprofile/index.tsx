@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -23,17 +24,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EditButton from '../../../components/myprofile/editbutton.svg';
 import Pfp from '../../../components/myprofile/pfp.svg';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
-
-// ✅ IMPORT SHARED FORM (same as homepage)
 import CreateSidequestForm from '../modals/sidequest/create';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
-/** -------------------------------
- * Types
- * ------------------------------- */
 type Sidequest = {
   id: string;
   title: string;
@@ -43,9 +39,6 @@ type Sidequest = {
   createdAt: string;
 };
 
-/** -------------------------------
- * Profile Page
- * ------------------------------- */
 export default function ProfilePage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -54,43 +47,42 @@ export default function ProfilePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sidequests, setSidequests] = useState<Sidequest[]>([]);
 
-  // ✅ USER STATE
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [status, setStatus] = useState('');
   const [location, setLocation] = useState('');
   const [birthday, setBirthday] = useState('');
+  const [bio, setBio] = useState('');
 
-  /** -------------------------------
-   * Fetch user data
-   * ------------------------------- */
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const id = await AsyncStorage.getItem('user_id');
-        if (id) {
+  // Re-fetches every time screen comes into focus (e.g. returning from edit.tsx)
+  useFocusEffect(
+    useCallback(() => {
+      const loadUser = async () => {
+        try {
+          const id = await AsyncStorage.getItem('user_id');
+          if (!id) return;
           const res = await fetch(`http://localhost:3000/users/${id}`);
           if (res.ok) {
             const data = await res.json();
-
             setFirstName(data.user.first_name || '');
             setLastName(data.user.last_name || '');
+            setStatus(data.user.status || '');
             setLocation(data.user.location || '');
             setBirthday(data.user.birthdate || '');
+            setBio(data.user.bio || '');
           }
+        } catch (err) {
+          console.error('Load error:', err);
         }
-      } catch (err) {
-        console.error('Load error:', err);
-      }
-    };
-
-    loadUser();
-  }, []);
+      };
+      loadUser();
+    }, [])
+  );
 
   const formatBirthday = (dateString: string | null) => {
     if (!dateString) return 'Add birthday';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString;
-
     return date.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -131,16 +123,17 @@ export default function ProfilePage() {
               {firstName} {lastName}
             </Text>
 
-            <Text style={styles.status}>
-              craving JJ&apos;s french toast...
+            <Text style={styles.infoText}>
+              {bio}
             </Text>
 
             <View style={styles.infoRow}>
-              <Text style={styles.infoText}>📍 {location}</Text>
+              <Text style={styles.infoText}>📍 {location || 'Add location'}</Text>
               <Text style={styles.infoText}>
                 🎂 {formatBirthday(birthday)}
               </Text>
             </View>
+            
 
             <Pressable style={styles.shareBtn}>
               <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
@@ -167,13 +160,11 @@ export default function ProfilePage() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* ✅ NEW SHARED SHEET */}
       <AddSidequestSheet
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}
       />
 
-      {/* Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -183,9 +174,6 @@ export default function ProfilePage() {
   );
 }
 
-/** -------------------------------
- * Shared Bottom Sheet (same as Home)
- * ------------------------------- */
 function AddSidequestSheet({
   visible,
   onClose,
@@ -193,9 +181,7 @@ function AddSidequestSheet({
   visible: boolean;
   onClose: () => void;
 }) {
-  const translateY = useRef(
-    new Animated.Value(SHEET_HEIGHT)
-  ).current;
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   useEffect(() => {
     Animated.spring(translateY, {
@@ -233,7 +219,6 @@ function AddSidequestSheet({
   return (
     <Modal transparent visible={visible} animationType="none">
       <Pressable style={localStyles.backdrop} onPress={onClose} />
-
       <Animated.View
         style={[
           localStyles.sheetContainer,
@@ -243,27 +228,20 @@ function AddSidequestSheet({
         <View {...panResponder.panHandlers} style={localStyles.handleArea}>
           <View style={localStyles.handle} />
         </View>
-
-        {/* ✅ SAME FORM AS HOMEPAGE */}
         <CreateSidequestForm onClose={onClose} />
       </Animated.View>
     </Modal>
   );
 }
 
-/** -------------------------------
- * Styles
- * ------------------------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-
   topBar: {
     paddingHorizontal: 18,
     paddingTop: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-
   editIconWrap: {
     width: 28,
     height: 28,
@@ -273,69 +251,56 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ececec',
   },
-
   hero: {
     alignItems: 'center',
     paddingTop: 18,
   },
-
   name: {
     fontSize: 28,
     fontWeight: '700',
     marginTop: 10,
   },
-
   status: {
     fontSize: 12,
     color: '#666',
     marginBottom: 12,
   },
-
   infoRow: {
     flexDirection: 'row',
     gap: 18,
   },
-
   infoText: {
     fontSize: 11.5,
     color: '#666',
   },
-
   shareBtn: {
     borderWidth: 1,
     marginTop: 10,
     padding: 8,
   },
-
   shareBtnText: {
     fontSize: 10,
     fontWeight: '700',
   },
-
   section: {
     marginTop: 26,
     paddingHorizontal: 16,
   },
-
   bigSectionTitle: {
     fontSize: 26,
     fontWeight: '800',
     marginBottom: 14,
   },
-
   cardsWrap: { gap: 12 },
-
   card: {
     backgroundColor: '#f7f4ef',
     borderRadius: 14,
     padding: 14,
   },
-
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
   },
-
   cardMeta: {
     fontSize: 12,
     color: '#666',
