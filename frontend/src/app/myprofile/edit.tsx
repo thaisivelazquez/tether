@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,9 +42,9 @@ export default function EditProfilePage() {
       >
         <View style={styles.topSection}>
           <Pfp width={118} height={118} />
-          <Pressable style={styles.photoButton}>
+          {/* <Pressable style={styles.photoButton}>
             <Text style={styles.photoButtonText}>Change Photo</Text>
-          </Pressable>
+          </Pressable> */}
         </View>
 
         <View style={styles.form}>
