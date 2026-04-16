@@ -17,7 +17,8 @@ export default function EditProfilePage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [name, setName] = useState('Jane Doe');
+  const [fname, setNamef] = useState('Jane');
+  const [lname, setNamel] = useState('Doe');
   const [status, setStatus] = useState("craving JJ's french toast...");
   const [location, setLocation] = useState('Manhattan, NY');
   const [birthday, setBirthday] = useState('January 21');
@@ -49,10 +50,20 @@ export default function EditProfilePage() {
 
         <View style={styles.form}>
           <View style={styles.field}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>First Name</Text>
             <TextInput
-              value={name}
-              onChangeText={setName}
+              value={fname}
+              onChangeText={setNamef}
+              style={styles.input}
+              placeholder="Name"
+              placeholderTextColor="#9a9a9a"
+            />
+          </View>
+           <View style={styles.field}>
+            <Text style={styles.label}>Last Name</Text>
+            <TextInput
+              value={lname}
+              onChangeText={setNamel}
               style={styles.input}
               placeholder="Name"
               placeholderTextColor="#9a9a9a"
@@ -92,6 +103,7 @@ export default function EditProfilePage() {
               placeholderTextColor="#9a9a9a"
             />
           </View>
+           
         </View>
       </ScrollView>
     </SafeAreaView>
