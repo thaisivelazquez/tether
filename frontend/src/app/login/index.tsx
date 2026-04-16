@@ -15,6 +15,12 @@ import {
 import Svg, { Circle, Path } from "react-native-svg";
 import { moderateScale, scale, styles } from "../../../components/login/loginstyle";
 
+// ✅ Move this OUTSIDE the component so it's not redefined on every render
+const getBaseUrl = () =>
+  Platform.OS === "web"
+    ? "http://localhost:3000"
+    : "http://172.19.8.233:3000"; // ← replace with your IP from `ipconfig`
+
 const ACTIVITIES = [
   "studying at butler library till nine",
   "wine and whatever on my rooftop!",
@@ -39,7 +45,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   const [phone, setPhone] = useState<string>("");
-  const [error, setError] = useState<string>(""); // ✅ NEW
+  const [error, setError] = useState<string>("");
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
@@ -50,51 +56,45 @@ export default function LoginPage() {
   ).current;
   const currentIndex = useRef<number>(COUNT);
 
- 
   const isValidPhone = (num: string) => {
     const digits = num.replace(/\D/g, "");
     return digits.length >= 7;
   };
 
-const handleSubmit = async () => {
-  if (!isValidPhone(phone)) {
-    setError("Please enter a valid phone number");
-    return;
-  }
-
-  setError("");
-
-  try {
-    const getBaseUrl = () =>
-  Platform.OS === 'web'
-    ? 'http://localhost:3000'
-    : 'http://YOUR_LAPTOP_IP:3000';
-
-const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone,
-        countryCode: selectedCountry.code,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error || "Failed to send code.");
+  const handleSubmit = async () => {
+    if (!isValidPhone(phone)) {
+      setError("Please enter a valid phone number");
       return;
     }
 
-    // OTP sent successfully, go to verify page
-    router.push({
-      pathname: "/verify",
-      params: { phone, countryCode: selectedCountry.code },
-    });
-  } catch (err) {
-    setError("Could not reach server. Is it running?");
-  }
-};
+    setError("");
+
+    try {
+      // ✅ Uses getBaseUrl() defined at the top
+      const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone,
+          countryCode: selectedCountry.code,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to send code.");
+        return;
+      }
+
+      router.push({
+        pathname: "/verify",
+        params: { phone, countryCode: selectedCountry.code },
+      });
+    } catch (err) {
+      setError("Could not reach server. Is it running?");
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -128,19 +128,16 @@ const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
             <Circle cx="430" cy="20" r="188" stroke="#111" strokeWidth="2" fill="none" />
           </Svg>
         </View>
-
         <View style={styles.decoInner}>
           <Svg width={scale(250)} height={scale(250)} viewBox="0 0 250 250">
             <Circle cx="250" cy="22" r="112" stroke="#111" strokeWidth="2" fill="none" />
           </Svg>
         </View>
-
         <View style={styles.decoDotLeft}>
           <Svg width={scale(62)} height={scale(62)} viewBox="0 0 62 62">
             <Circle cx="31" cy="31" r="31" fill="#cfcfcf" />
           </Svg>
         </View>
-
         <View style={styles.decoDotRight}>
           <Svg width={scale(58)} height={scale(58)} viewBox="0 0 58 58">
             <Circle cx="29" cy="29" r="29" fill="#cfcfcf" />
@@ -219,9 +216,8 @@ const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
                 value={phone}
                 onChangeText={(text) => {
                   setPhone(text);
-                  if (error) setError(""); // clear error while typing
+                  if (error) setError("");
                 }}
-                
               />
             </View>
           </View>
@@ -236,7 +232,7 @@ const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
             style={[
               styles.submitBtn,
               { paddingVertical: height * 0.018 },
-              !isValidPhone(phone) && { opacity: 0.4 }, // ✅ disabled look
+              !isValidPhone(phone) && { opacity: 0.4 },
             ]}
             onPress={handleSubmit}
             activeOpacity={0.5}
@@ -248,7 +244,6 @@ const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
         </View>
       </KeyboardAvoidingView>
 
-   
       <Modal
         visible={dropdownOpen}
         transparent
