@@ -37,7 +37,7 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
         route = '/circle';
         break;
       case 'bell':
-        route = null;
+        route = '/notification';
         break;
       case 'profile':
         route = '/myprofile';
@@ -120,7 +120,7 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
 
         <Pressable onPress={() => handleTabPress('bell')} style={{ padding: 6 }}>
           <Image
-            source={BellUnselectedImg}
+            source={activeTab === 'bell' ? BellUnselectedImg : BellUnselectedImg}
             style={{ width: 28, height: 28 }}
             resizeMode="contain"
           />
