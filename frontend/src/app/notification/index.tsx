@@ -234,27 +234,37 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchNotifications = useCallback(async () => {
-    const userId = await AsyncStorage.getItem('user_id');
-    if (!userId) return;
+const fetchNotifications = useCallback(async () => {
+  const userId = await AsyncStorage.getItem('user_id');
+  if (!userId) return;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const [reqRes, evtRes] = await Promise.all([
-        fetch(`${getBaseUrl()}/friends/requests?user_id=${userId}`),
-        fetch(`${getBaseUrl()}/events?user_id=${userId}`),
-      ]);
+    const [reqRes, evtRes] = await Promise.all([
+      fetch(`${getBaseUrl()}/friends/requests?user_id=${userId}`),
+      fetch(`${getBaseUrl()}/events?user_id=${userId}`),
+    ]);
 
-      const reqData = reqRes.ok ? await reqRes.json() : { requests: [] };
-      const evtData = evtRes.ok ? await evtRes.json() : [];
+    const reqData = reqRes.ok ? await reqRes.json() : { requests: [] };
+    const evtData = evtRes.ok ? await evtRes.json() : [];
 
-      const friendRequests: FriendRequest[] = (reqData.requests ?? []).map((r: any) => ({
-        ...r,
-        type: 'friend_request' as const,
-      }));
+    const friendRequests: FriendRequest[] = (reqData.requests ?? []).map((r: any) => ({
+      ...r,
+      type: 'friend_request' as const,
+    }));
 
-      const eventNotifs: EventNotification[] = (Array.isArray(evtData) ? evtData : []).map((e: any) => ({
+    const eventNotifs: EventNotification[] = (Array.isArray(evtData) ? evtData : [])
+      .filter((e: any) => {
+        const creatorId =
+          e.postedBy?.id ??
+          e.creator_id ??
+          e.user_id ??
+          e.posted_by_id;
+
+        return String(creatorId) !== String(userId);
+      })
+      .map((e: any) => ({
         id: e.id,
         type: 'event' as const,
         event_title: e.title ?? e.event_title ?? '',
@@ -266,13 +276,13 @@ export default function NotificationsPage() {
         creator_last_name: e.postedBy?.name?.split(' ')[1] ?? e.creator_last_name ?? '',
       }));
 
-      setNotifications([...friendRequests, ...eventNotifs]);
-    } catch (err) {
-      console.error('Failed to fetch notifications:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setNotifications([...friendRequests, ...eventNotifs]);
+  } catch (err) {
+    console.error('Failed to fetch notifications:', err);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useFocusEffect(
     useCallback(() => {
