@@ -13,6 +13,7 @@ import {
   Image,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -32,6 +33,11 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
+// ✅ Fixed getBaseUrl
+const getBaseUrl = () =>
+  Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.8.233:3000';
 
 type Sidequest = {
   id: string;
@@ -41,7 +47,6 @@ type Sidequest = {
   attendees: any[];
   createdAt: string;
 };
-
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -64,7 +69,8 @@ export default function ProfilePage() {
         try {
           const id = await AsyncStorage.getItem('user_id');
           if (!id) return;
-          const res = await fetch(`http:///users/${id}`);
+          // ✅ Fixed URL
+          const res = await fetch(`${getBaseUrl()}/users/${id}`);
           if (res.ok) {
             const data = await res.json();
             setFirstName(data.user.first_name || '');
@@ -184,7 +190,6 @@ export default function ProfilePage() {
   );
 }
 
-
 function AddSidequestSheet({
   visible,
   onClose,
@@ -244,7 +249,6 @@ function AddSidequestSheet({
     </Modal>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
@@ -318,7 +322,6 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
-
 
 const localStyles = StyleSheet.create({
   backdrop: {
