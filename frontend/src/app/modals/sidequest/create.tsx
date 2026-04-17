@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http:// 172.19.8.233:3000'; 
+    : 'http://172.19.8.233:3000'; 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
