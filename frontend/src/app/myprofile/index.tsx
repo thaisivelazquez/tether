@@ -8,6 +8,7 @@ import React, {
   useState
 } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -17,11 +18,15 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import * as Clipboard from 'expo-clipboard';
+
 
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
@@ -151,9 +156,24 @@ export default function ProfilePage() {
               </Text>
             </View>
 
-            <Pressable style={styles.shareBtn}>
-              <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
-            </Pressable>
+           <Pressable
+  style={styles.shareBtn}
+  onPress={async () => {
+    const id = await AsyncStorage.getItem('user_id');
+    const link = `exp://172.19.8.233:8081/--/profile/${id}`;
+
+    try {
+      await Share.share({
+        message: `Check out my Tether profile! ${link}`,
+      });
+    } catch (err) {
+      await Clipboard.setStringAsync(link);
+      Alert.alert('Copied!', 'Profile link copied to clipboard.');
+    }
+  }}
+>
+  <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
+</Pressable>
           </View>
 
           {/* Sidequests */}
