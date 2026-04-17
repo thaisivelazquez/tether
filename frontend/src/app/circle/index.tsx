@@ -45,8 +45,8 @@ const AVATAR_COLORS = ['#d9d9d9', '#d4c5f9', '#c5e8f9', '#c5f9d4', '#f9d4c5', '#
 
 const getBaseUrl = () =>
   Platform.OS === 'web'
-    ? 'http://'
-    : 'http://172.19.3.53:3000'; // same IP as your homepage
+    ? 'http://localhost:3000'
+    : 'http://172.19.8.233:3000'; 
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
