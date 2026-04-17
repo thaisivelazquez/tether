@@ -35,11 +35,11 @@ const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size; // responsive s
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
-// ✅ Fixed getBaseUrl
+
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://YOUR_LAPTOP_IP:3000'; // ← replace with your IP from `ipconfig`
+    : 'http://172.19.8.233:3000'; 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

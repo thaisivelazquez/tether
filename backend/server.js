@@ -24,19 +24,20 @@
 
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors"); // ✅ import CORS
+const cors = require("cors");
 const app = express();
 
 // Enable CORS for all origins (for development)
 app.use(cors({
-  origin: "*", // Allows all origins (Expo Web, Mobile, etc.)
+  origin: "*",
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// Important: Handle OPTIONS globally just in case
+// Handle OPTIONS globally
 app.options("*", cors());
+
 // Parse JSON bodies
 app.use(express.json());
 
@@ -50,5 +51,6 @@ app.use("/circle", require("./routes/circle"));
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
+// ✅ Bind to 0.0.0.0 so phone on same Wi-Fi can reach it
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));

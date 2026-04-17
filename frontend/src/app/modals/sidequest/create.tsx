@@ -5,6 +5,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ✅ Fixed getBaseUrl
+const getBaseUrl = () =>
+  Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http:// 172.19.8.233:3000'; 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -281,12 +288,9 @@ export default function CreateSidequestForm({ onClose }: { onClose: () => void }
   const [toMinIdx, setToMinIdx] = useState(0);
   const [toAmPmIdx, setToAmPmIdx] = useState(1);
 
-  // Max attendees (0 = "No Limit", 1 = "1", etc.)
   const [maxAttIdx, setMaxAttIdx] = useState(0);
-  // Visibility (0 = Close Friends, 1 = Everyone)
   const [visIdx, setVisIdx] = useState(0);
 
-  // Temp (staged) state while picker is open
   const [tempFrom, setTempFrom] = useState({
     monthIdx: 0, dayIdx: 0, yearIdx: 0, hourIdx: 2, minIdx: 0, amPmIdx: 1,
   });
@@ -298,15 +302,14 @@ export default function CreateSidequestForm({ onClose }: { onClose: () => void }
 
   const [activePicker, setActivePicker] = useState<'from' | 'to' | 'maxAtt' | 'vis' | null>(null);
 
-  // Day arrays
   const fromDays = buildDays(fromMonthIdx, parseInt(YEARS[fromYearIdx]));
   const toDays = buildDays(toMonthIdx, parseInt(YEARS[toYearIdx]));
   const fromDaysTemp = buildDays(tempFrom.monthIdx, parseInt(YEARS[tempFrom.yearIdx]));
   const toDaysTemp = buildDays(tempTo.monthIdx, parseInt(YEARS[tempTo.yearIdx]));
 
-  const formatDate = (monthIdx: number, dayIdx: number, yearIdx: number, days: string[]) =>
+  const formatDateLabel = (monthIdx: number, dayIdx: number, yearIdx: number, days: string[]) =>
     `${MONTHS[monthIdx]} ${days[dayIdx] ?? '01'}, ${YEARS[yearIdx]}`;
-  const formatTime = (hourIdx: number, minIdx: number, amPmIdx: number) =>
+  const formatTimeLabel = (hourIdx: number, minIdx: number, amPmIdx: number) =>
     `${HOURS[hourIdx]}:${MINUTES[minIdx]} ${AMPM[amPmIdx]}`;
 
   const openFrom = () => {
@@ -335,31 +338,55 @@ export default function CreateSidequestForm({ onClose }: { onClose: () => void }
   const confirmMaxAtt = () => { setMaxAttIdx(tempMaxAtt); setActivePicker(null); };
   const confirmVis = () => { setVisIdx(tempVis); setActivePicker(null); };
 
+  // ✅ Build actual ISO times from picker state
+  const buildIso = (
+    monthIdx: number, dayIdx: number, yearIdx: number,
+    hourIdx: number, minIdx: number, amPmIdx: number,
+    days: string[]
+  ): string => {
+    const year = parseInt(YEARS[yearIdx]);
+    const month = monthIdx;
+    const day = parseInt(days[dayIdx] ?? '1');
+    let hour = parseInt(HOURS[hourIdx]);
+    if (AMPM[amPmIdx] === 'PM' && hour !== 12) hour += 12;
+    if (AMPM[amPmIdx] === 'AM' && hour === 12) hour = 0;
+    const minute = parseInt(MINUTES[minIdx]);
+    return new Date(year, month, day, hour, minute, 0).toISOString();
+  };
+
   const submit = async () => {
     const userId = await AsyncStorage.getItem('user_id');
-    console.log('🚀 Payload User ID:', userId);
 
     if (!userId) {
       Alert.alert('Error', 'User session not found. Please log in again.');
       return;
     }
 
-    const start = new Date();
-    start.setDate(start.getDate() + 1);
-    start.setHours(15, 0, 0, 0);
-    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    if (!title.trim()) {
+      Alert.alert('Validation', 'Please enter a title for your sidequest.');
+      return;
+    }
+
+    const startIso = buildIso(fromMonthIdx, fromDayIdx, fromYearIdx, fromHourIdx, fromMinIdx, fromAmPmIdx, fromDays);
+    const endIso = buildIso(toMonthIdx, toDayIdx, toYearIdx, toHourIdx, toMinIdx, toAmPmIdx, toDays);
+
+    if (new Date(endIso) <= new Date(startIso)) {
+      Alert.alert('Validation', 'End time must be after start time.');
+      return;
+    }
 
     try {
-      const res = await fetch('http:///events', {
+      // ✅ Fixed URL
+      const res = await fetch(`${getBaseUrl()}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          event_title: title.trim() || 'share what you are up to',
-          event_des: detail.trim() || 'Tell your friends what to expect.',
-          time_of_event: start.toISOString(),
-          time_event_end: end.toISOString(),
-          location: location.trim() || 'Columbia University area',
+          event_title: title.trim(),
+          event_des: detail.trim() || '',
+          time_of_event: startIso,
+          time_event_end: endIso,
+          location: location.trim() || 'TBD',
           max_attendees: maxAttIdx === 0 ? null : maxAttIdx,
           circle_status: visIdx === 0 ? 'close-friends' : 'everyone',
         }),
@@ -403,12 +430,12 @@ export default function CreateSidequestForm({ onClose }: { onClose: () => void }
         <Pressable style={styles.row} onPress={openFrom}>
           <View style={[styles.pill, styles.pillFlex]}>
             <Text style={styles.pillText}>
-              {formatDate(fromMonthIdx, fromDayIdx, fromYearIdx, fromDays)}
+              {formatDateLabel(fromMonthIdx, fromDayIdx, fromYearIdx, fromDays)}
             </Text>
           </View>
           <View style={[styles.pill, styles.pillFlex]}>
             <Text style={styles.pillText}>
-              {formatTime(fromHourIdx, fromMinIdx, fromAmPmIdx)}
+              {formatTimeLabel(fromHourIdx, fromMinIdx, fromAmPmIdx)}
             </Text>
           </View>
         </Pressable>
@@ -417,12 +444,12 @@ export default function CreateSidequestForm({ onClose }: { onClose: () => void }
         <Pressable style={styles.row} onPress={openTo}>
           <View style={[styles.pill, styles.pillFlex]}>
             <Text style={styles.pillText}>
-              {formatDate(toMonthIdx, toDayIdx, toYearIdx, toDays)}
+              {formatDateLabel(toMonthIdx, toDayIdx, toYearIdx, toDays)}
             </Text>
           </View>
           <View style={[styles.pill, styles.pillFlex]}>
             <Text style={styles.pillText}>
-              {formatTime(toHourIdx, toMinIdx, toAmPmIdx)}
+              {formatTimeLabel(toHourIdx, toMinIdx, toAmPmIdx)}
             </Text>
           </View>
         </Pressable>
