@@ -184,6 +184,14 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
+// GET /users/search?phone=+11234567890
+app.get('/users/search', async (req, res) => {
+  const { phone } = req.query;
+  const user = await db('users').where({ phone }).first();
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ user });
+});
+
 module.exports = router;
 
 

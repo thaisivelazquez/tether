@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Contacts from 'expo-contacts';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -16,10 +18,8 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
-
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -46,8 +46,7 @@ const AVATAR_COLORS = ['#d9d9d9', '#d4c5f9', '#c5e8f9', '#c5f9d4', '#f9d4c5', '#
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://172.19.8.233:3000'; 
-
+    : 'http://172.19.8.233:3000';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,7 +81,6 @@ type CircleMember = {
   bio: string | null;
 };
 
-
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 async function fetchCircle(): Promise<CircleMember[]> {
@@ -90,11 +88,11 @@ async function fetchCircle(): Promise<CircleMember[]> {
   if (!userId) throw new Error('No user_id in storage');
 
   const res = await fetch(`${getBaseUrl()}/circle?user_id=${userId}`);
- if (!res.ok) {
-  const body = await res.text();
-  console.error('fetchCircle failed:', res.status, body);
-  throw new Error('Failed to fetch circle');
-}
+  if (!res.ok) {
+    const body = await res.text();
+    console.error('fetchCircle failed:', res.status, body);
+    throw new Error('Failed to fetch circle');
+  }
   const data = await res.json();
   return data.members as CircleMember[];
 }
@@ -120,7 +118,6 @@ async function removeFriendFromCircle(memberId: string): Promise<void> {
   );
   if (!res.ok) throw new Error('Failed to remove circle member');
 }
-
 
 // ─── Orbit helpers ────────────────────────────────────────────────────────────
 
@@ -150,7 +147,6 @@ const clampToOrbit = (x: number, y: number) => {
     y: Math.sin(angle) * finalRadius,
   };
 };
-
 
 // ─── AddSidequestSheet ────────────────────────────────────────────────────────
 
@@ -193,7 +189,6 @@ function AddSidequestSheet({ visible, onClose }: { visible: boolean; onClose: ()
   );
 }
 
-
 // ─── AddFriendModal ───────────────────────────────────────────────────────────
 
 function AddFriendModal({
@@ -220,15 +215,15 @@ function AddFriendModal({
   );
 }
 
-
 // ─── AddByPhoneModal ──────────────────────────────────────────────────────────
 
 function AddByPhoneModal({
   visible, onClose, onBack, onSearch,
 }: {
-  visible: boolean; onClose: () => void; onBack: () => void; onSearch: (v: string) => void;
+  visible: boolean; onClose: () => void; onBack: () => void; onSearch: (v: string) => Promise<void>;
 }) {
   const [val, setVal] = useState('');
+  const [searching, setSearching] = useState(false);
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -248,8 +243,12 @@ function AddByPhoneModal({
               keyboardType="phone-pad"
               autoFocus
             />
-            <Pressable onPress={() => onSearch(val)}>
-              <Text style={{ fontSize: 18 }}>🔍</Text>
+            <Pressable onPress={async () => {
+              setSearching(true);
+              await onSearch(val);
+              setSearching(false);
+            }}>
+              <Text style={{ fontSize: 18 }}>{searching ? '⏳' : '🔍'}</Text>
             </Pressable>
           </View>
           <Pressable onPress={onBack} style={{ marginTop: 14 }}>
@@ -260,7 +259,6 @@ function AddByPhoneModal({
     </Modal>
   );
 }
-
 
 // ─── NotOnTetherModal ─────────────────────────────────────────────────────────
 
@@ -290,7 +288,6 @@ function NotOnTetherModal({
     </Modal>
   );
 }
-
 
 // ─── DraggableAvatar ──────────────────────────────────────────────────────────
 
@@ -434,7 +431,6 @@ function DraggableAvatar({
   );
 }
 
-
 // ─── OrbitView ────────────────────────────────────────────────────────────────
 
 function OrbitView({
@@ -476,7 +472,6 @@ function OrbitView({
     </Pressable>
   );
 }
-
 
 // ─── CirclePage ───────────────────────────────────────────────────────────────
 
@@ -577,9 +572,109 @@ export default function CirclePage() {
     }
   };
 
-  const handleSearch = (val: string) => {
-    setSearchedName(val || 'First Name');
-    setModal('notOnTether');
+
+const handleFromContacts = async () => {
+  const { status } = await Contacts.requestPermissionsAsync();
+
+  if (status !== 'granted') {
+    Alert.alert('Permission Denied', 'Please allow contacts access in your phone settings.');
+    return;
+  }
+
+  const { data } = await Contacts.getContactsAsync({
+    fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.FirstName, Contacts.Fields.LastName],
+  });
+
+  if (!data.length) {
+    Alert.alert('No contacts found');
+    return;
+  }
+
+  // Show native contact picker
+  const contact = await Contacts.presentContactPickerAsync();
+
+  if (!contact) return; // user cancelled
+
+  const phone = contact.phoneNumbers?.[0]?.number;
+
+  if (!phone) {
+    Alert.alert('No phone number', `${contact.firstName} doesn't have a phone number saved.`);
+    return;
+  }
+
+  // Reuse the same search logic
+  setModal('none');
+  await handleSearch(phone);
+};
+
+
+
+
+
+
+
+
+
+
+
+
+  // ── Search by phone ───────────────────────────────────────────────────────
+  const handleSearch = async (phone: string) => {
+    if (!phone.trim()) return;
+
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      const res = await fetch(`${getBaseUrl()}/users/search?phone=${encodeURIComponent(phone)}`);
+
+      if (res.status === 404) {
+        setSearchedName(phone);
+        setModal('notOnTether');
+        return;
+      }
+
+      if (!res.ok) throw new Error('Search failed');
+
+      const data = await res.json();
+      const found = data.user;
+
+      // Add to circle in DB
+      const addRes = await fetch(`${getBaseUrl()}/circle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          friend_id: found.id,
+          circle_type: 'outer',
+        }),
+      });
+
+      if (!addRes.ok) throw new Error('Failed to add friend');
+
+      // Add to local state immediately
+      const newNode: FriendNode = {
+        user: {
+          id: found.id,
+          name: `${found.first_name} ${found.last_name}`,
+          ringLevel: 'friends',
+          avatar: '🙂',
+          handle: `@${found.first_name.toLowerCase()}`,
+          location: found.location ?? '',
+          status: found.bio ?? '',
+        },
+        ring: 'outer',
+        color: AVATAR_COLORS[nodes.length % AVATAR_COLORS.length],
+        x: OUTER_SAFE_RADIUS * 0.72,
+        y: 0,
+      };
+
+      setNodes(prev => [...prev, newNode]);
+      setModal('none');
+      Alert.alert('✅ Added!', `${found.first_name} was added to your outer ring.`);
+
+    } catch (err) {
+      console.error('Search error:', err);
+      Alert.alert('Error', 'Something went wrong. Try again.');
+    }
   };
 
   const handleTabPress = (tab: NavTabId) => {
@@ -664,7 +759,7 @@ export default function CirclePage() {
         visible={modal === 'addFriend'}
         onClose={() => setModal('none')}
         onByPhone={() => setModal('addByPhone')}
-        onFromContacts={() => setModal('none')}
+        onFromContacts={handleFromContacts}  
       />
       <AddByPhoneModal
         visible={modal === 'addByPhone'}
@@ -681,7 +776,6 @@ export default function CirclePage() {
     </View>
   );
 }
-
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
