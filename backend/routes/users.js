@@ -19,68 +19,42 @@
  * Response 200: { user }
  * Response 404: { error: "User not found." }
  */
- 
 const router = require("express").Router();
 const pool = require("../db");
 const { v4: uuidv4 } = require("uuid");
 
-// ------------------------------------
-// Create new user (called from tutorial completion)
 // POST /users/create
-// Body: { phone, countryCode, firstName, lastName }
-// ------------------------------------
 router.post("/create", async (req, res) => {
   const { phone, countryCode = "+1", firstName, lastName } = req.body;
-
   if (!phone || !firstName || !lastName) {
-    return res
-      .status(400)
-      .json({ error: "phone, firstName, and lastName are required." });
+    return res.status(400).json({ error: "phone, firstName, and lastName are required." });
   }
-
   const digits = String(phone).replace(/\D/g, "");
   const fullNumber = phone.startsWith("+") ? phone : `${countryCode}${digits}`;
-
   try {
-    // Guard against duplicates
-    const existing = await pool.query(
-      "SELECT id FROM users WHERE phone = $1",
-      [fullNumber]
-    );
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: "User already exists." });
-    }
-
+    const existing = await pool.query("SELECT id FROM users WHERE phone = $1", [fullNumber]);
+    if (existing.rows.length > 0) return res.status(409).json({ error: "User already exists." });
     const id = uuidv4();
     const { rows } = await pool.query(
-      `INSERT INTO users 
-       (id, phone, first_name, last_name, date_signed_up, last_used, number_of_events)
-       VALUES ($1, $2, $3, $4, NOW(), NOW(), 0)
-       RETURNING *`,
+      `INSERT INTO users (id, phone, first_name, last_name, date_signed_up, last_used, number_of_events)
+       VALUES ($1, $2, $3, $4, NOW(), NOW(), 0) RETURNING *`,
       [id, fullNumber, firstName.trim(), lastName.trim()]
     );
-
     return res.status(201).json({ user: rows[0] });
   } catch (err) {
     console.error("DB error:", err.message);
-    return res.status(500).json({ error: "Server error. Please try again." });
+    return res.status(500).json({ error: "Server error." });
   }
 });
 
-// ------------------------------------
-// Get user by ID
-// GET /users/:id
-// ------------------------------------
-router.get("/:id", async (req, res) => {
-  const { id } = req.params;
+// GET /users/by-phone/:phone  ← MUST be before /:id
+router.get("/by-phone/:phone", async (req, res) => {
+  const raw = decodeURIComponent(req.params.phone);
+  const digits = raw.replace(/\D/g, "");
+  const normalized = `+${digits.startsWith("1") ? digits : "1" + digits}`;
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM users WHERE id = $1",
-      [id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "User not found." });
-    }
+    const { rows } = await pool.query("SELECT * FROM users WHERE phone = $1", [normalized]);
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
     return res.json({ user: rows[0] });
   } catch (err) {
     console.error("DB error:", err.message);
@@ -88,19 +62,39 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// ------------------------------------
-// Get user by phone
-// GET /users/by-phone/:phone
-// ------------------------------------
-router.get("/by-phone/:phone", async (req, res) => {
-  const { phone } = req.params;
-  if (!phone) return res.status(400).json({ error: "Phone number is required." });
+// GET /users/:id
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+    return res.json({ user: rows[0] });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
 
-  const normalizedPhone = phone.replace(/\D/g, "");
+// PATCH /users/:id
+router.patch("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { first_name, last_name, birthdate, location, affiliation, bio } = req.body;
+  const fields = [];
+  const values = [];
+  let index = 1;
+  if (first_name !== undefined) { fields.push(`first_name = $${index++}`); values.push(first_name.trim()); }
+  if (last_name !== undefined)  { fields.push(`last_name = $${index++}`);  values.push(last_name.trim()); }
+  if (birthdate !== undefined)  { fields.push(`birthdate = $${index++}`);  values.push(birthdate); }
+  if (location !== undefined)   { fields.push(`location = $${index++}`);   values.push(location); }
+  if (affiliation !== undefined){ fields.push(`affiliation = $${index++}`);values.push(affiliation); }
+  if (bio !== undefined)        { fields.push(`bio = $${index++}`);        values.push(bio); }
+  if (fields.length === 0) return res.status(400).json({ error: "No fields provided." });
+  fields.push(`last_used = NOW()`);
+  values.push(id);
   try {
     const { rows } = await pool.query(
-      "SELECT * FROM users WHERE phone LIKE $1",
-      [`%${normalizedPhone}`] // flexible match
+      `UPDATE users SET ${fields.join(", ")} WHERE id = $${index} RETURNING *`,
+      values
     );
     if (rows.length === 0) return res.status(404).json({ error: "User not found." });
     return res.json({ user: rows[0] });
@@ -110,90 +104,7 @@ router.get("/by-phone/:phone", async (req, res) => {
   }
 });
 
-// ------------------------------------
-// Update user info
-// PATCH /users/:id
-// Body: { first_name, last_name, birthdate, location, affiliation }
-// ------------------------------------
-router.patch("/:id", async (req, res) => {
-  const { id } = req.params;
-  const { first_name, last_name, birthdate, location, affiliation, bio } = req.body;
-
-  try {
-    const fields = [];
-    const values = [];
-    let index = 1;
-
-    if (first_name !== undefined) {
-      fields.push(`first_name = $${index++}`);
-      values.push(first_name.trim());
-    }
-
-    if (last_name !== undefined) {
-      fields.push(`last_name = $${index++}`);
-      values.push(last_name.trim());
-    }
-
-    if (birthdate !== undefined) {
-      fields.push(`birthdate = $${index++}`);
-      values.push(birthdate);
-    }
-
-    if (location !== undefined) {
-      fields.push(`location = $${index++}`);
-      values.push(location);
-    }
-
-    if (affiliation !== undefined) {
-      fields.push(`affiliation = $${index++}`);
-      values.push(affiliation);
-    }
-    if (bio !== undefined) {
-  fields.push(`bio = $${index++}`);
-  values.push(bio);
-}
-
-    // If nothing to update
-    if (fields.length === 0) {
-      return res.status(400).json({ error: "No fields provided to update." });
-    }
-
-    // Always update last_used
-    fields.push(`last_used = NOW()`);
-
-    const query = `
-      UPDATE users
-      SET ${fields.join(", ")}
-      WHERE id = $${index}
-      RETURNING *
-    `;
-
-    values.push(id);
-
-    const { rows } = await pool.query(query, values);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "User not found." });
-    }
-
-    return res.json({ user: rows[0] });
-
-  } catch (err) {
-    console.error("DB error:", err.message);
-    return res.status(500).json({ error: "Server error." });
-  }
-});
-
-// GET /users/search?phone=+11234567890
-app.get('/users/search', async (req, res) => {
-  const { phone } = req.query;
-  const user = await db('users').where({ phone }).first();
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ user });
-});
-
 module.exports = router;
-
 
 
 // DELETE FROM users

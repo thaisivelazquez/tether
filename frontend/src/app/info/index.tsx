@@ -5,6 +5,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Platform,
   SafeAreaView,
   StatusBar,
   Text,
@@ -14,16 +15,20 @@ import {
 } from "react-native";
 import { styles } from "../../../components/info/infostyles";
 
+// ✅ Fixed getBaseUrl
+const getBaseUrl = () =>
+  Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.8.233:3000';
+
 export default function InfoPage() {
   const router = useRouter();
   const whiteOverlay = useRef(new Animated.Value(1)).current;
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [phone, setPhone] = useState<string | null>(null);
-
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [birthday, setBirthday] = useState(""); // YYYY-MM-DD
+  const [birthday, setBirthday] = useState("");
   const [location, setLocation] = useState("");
   const [affiliation, setAffiliation] = useState("");
 
@@ -37,74 +42,29 @@ export default function InfoPage() {
     }).start();
   }, []);
 
-  // Get phone from previous page (AsyncStorage) and fetch userId
-  // useEffect(() => {
-  //   const fetchUser = async () => {
-  //     try {
-  //       const storedPhone = await AsyncStorage.getItem("phone"); // stored from previous page
-  //       if (!storedPhone) {
-  //         Alert.alert(
-  //           "User not found",
-  //           "Phone number missing. Please restart signup."
-  //         );
-  //         return;
-  //       }
+useEffect(() => {
+  (async () => {
+    try {
+      const id = await AsyncStorage.getItem("user_id");
+      console.log("Fetched user_id:", id);
 
-  //       setPhone(storedPhone);
-
-  //       const res = await fetch(
-  //         `http://YOUR_IP:3000/users/by-phone/${encodeURIComponent(
-  //           storedPhone
-  //         )}`
-  //       );
-  //       if (!res.ok) throw new Error("User not found");
-
-  //       const data = await res.json();
-  //       setUserId(data.user.id);
-
-  //       // Optionally pre-fill existing info
-  //       setFirstName(data.user.first_name || "");
-  //       setLastName(data.user.last_name || "");
-  //       setBirthday(data.user.birthdate || ""); // YYYY-MM-DD
-  //       setLocation(data.user.location || "");
-  //       setAffiliation(data.user.affiliation || "");
-  //     } catch (err) {
-  //       console.error(err);
-  //       Alert.alert(
-  //         "User not found",
-  //         "Please restart signup."
-  //       );
-  //     }
-  //   };
-
-  //   fetchUser();
-  // }, []);
-
-  
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        // Use SecureStore since that's where we saved it in the verify step!
-        //const id = await SecureStore.getItemAsync("user_id");
-        const id = await AsyncStorage.getItem("user_id");
-        console.log("Fetched from SecureStore:", id);
-        
-        if (id) {
-          setUserId(id);
-          // Now fetch the rest of the profile if you want to pre-fill
-          const res = await fetch(`http:///users/${id}`);
-          if (res.ok) {
-            const data = await res.json();
-            setFirstName(data.user.first_name || "");
-            // ... rest of your setters
-          }
+      if (id) {
+        setUserId(id);
+        const res = await fetch(`${getBaseUrl()}/users/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFirstName(data.user.first_name || "");
+          setLastName(data.user.last_name || "");
+          setBirthday(data.user.birthdate || "");
+          setLocation(data.user.location || "");
+          setAffiliation(data.user.affiliation || "");
         }
-      } catch (err) {
-        console.error("Failed to load user ID", err);
       }
-    };
-    loadUser();
-  }, []);
+    } catch (err) {
+      console.error("Failed to load user:", err);
+    }
+  })();
+}, []);
 
   const isFormValid =
     firstName.trim() !== "" &&
@@ -113,21 +73,20 @@ export default function InfoPage() {
     location.trim() !== "";
 
   const handleBirthdayChange = (text: string) => {
-    // Accept only digits and dashes for YYYY-MM-DD
     const cleaned = text.replace(/[^0-9-]/g, "");
-    setBirthday(cleaned.slice(0, 10)); // max 10 chars
+    setBirthday(cleaned.slice(0, 10));
   };
 
   const handleSubmit = async () => {
     console.log("📂 Current stored user_id:", userId);
     if (!isFormValid || !userId) {
-      
       Alert.alert("Error", "Please fill all required fields.");
       return;
     }
 
     try {
-      const res = await fetch(`http:///users/${userId}`, {
+      // ✅ Fixed fetch URL
+      const res = await fetch(`${getBaseUrl()}/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -256,7 +215,6 @@ export default function InfoPage() {
                 { opacity: isFormValid ? 1 : 0.4 },
               ]}
               onPress={handleSubmit}
-              // disabled={!isFormValid || !userId}
             >
               <Text style={styles.completeBtnText}>
                 Complete sign up →
@@ -282,4 +240,3 @@ export default function InfoPage() {
     </View>
   );
 }
-

@@ -6,6 +6,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -15,7 +16,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
@@ -81,12 +82,18 @@ type CircleMember = {
   bio: string | null;
 };
 
+type FoundUser = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+};
+
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 async function fetchCircle(): Promise<CircleMember[]> {
   const userId = await AsyncStorage.getItem('user_id');
   if (!userId) throw new Error('No user_id in storage');
-
   const res = await fetch(`${getBaseUrl()}/circle?user_id=${userId}`);
   if (!res.ok) {
     const body = await res.text();
@@ -129,23 +136,16 @@ const polarToXY = (angle: number, radius: number) => ({
 const clampToOrbit = (x: number, y: number) => {
   const d = Math.sqrt(x * x + y * y);
   if (d === 0) return { x: 0, y: 0 };
-
   const angle = Math.atan2(y, x);
   const capped = Math.min(d, OUTER_SAFE_RADIUS);
-
   const innerForbiddenMin = INNER_SAFE_RADIUS;
   const innerForbiddenMax = INNER_RING_RADIUS + AVATAR_SIZE / 2 + RING_STROKE_WIDTH + INNER_BOUNDARY_GAP;
-
   let finalRadius = capped;
   if (capped > innerForbiddenMin && capped < innerForbiddenMax) {
     const midpoint = (innerForbiddenMin + innerForbiddenMax) / 2;
     finalRadius = capped < midpoint ? innerForbiddenMin : innerForbiddenMax;
   }
-
-  return {
-    x: Math.cos(angle) * finalRadius,
-    y: Math.sin(angle) * finalRadius,
-  };
+  return { x: Math.cos(angle) * finalRadius, y: Math.sin(angle) * finalRadius };
 };
 
 // ─── AddSidequestSheet ────────────────────────────────────────────────────────
@@ -218,43 +218,173 @@ function AddFriendModal({
 // ─── AddByPhoneModal ──────────────────────────────────────────────────────────
 
 function AddByPhoneModal({
-  visible, onClose, onBack, onSearch,
+  visible, onClose, onBack, currentUserId,
 }: {
-  visible: boolean; onClose: () => void; onBack: () => void; onSearch: (v: string) => Promise<void>;
+  visible: boolean;
+  onClose: () => void;
+  onBack: () => void;
+  currentUserId: string | null;
 }) {
   const [val, setVal] = useState('');
   const [searching, setSearching] = useState(false);
+  const [foundUser, setFoundUser] = useState<FoundUser | null>(null);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setVal('');
+      setSearching(false);
+      setFoundUser(null);
+      setError('');
+      setSent(false);
+    }
+  }, [visible]);
+
+  const handleSearch = async () => {
+    if (!val.trim()) return;
+    setSearching(true);
+    setFoundUser(null);
+    setError('');
+
+    try {
+      const digits = val.replace(/\D/g, '');
+      const normalized = encodeURIComponent(`+1${digits}`);
+      const res = await fetch(`${getBaseUrl()}/users/by-phone/${normalized}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        if (data.user.id === currentUserId) {
+          setError("That's your own number!");
+        } else {
+          setFoundUser(data.user);
+        }
+      } else {
+        setError('No account found with that number.');
+      }
+    } catch {
+      setError('Something went wrong. Try again.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSendRequest = async () => {
+    if (!foundUser) return;
+    try {
+      const res = await fetch(`${getBaseUrl()}/friends/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender_id: currentUserId, receiver_id: foundUser.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSent(true);
+      } else {
+        setError(data.error || 'Could not send request.');
+      }
+    } catch {
+      setError('Something went wrong.');
+    }
+  };
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
-        <Pressable style={s.card} onPress={() => {}}>
-          <Pressable style={s.xBtn} onPress={onClose}><Text style={s.xTxt}>✕</Text></Pressable>
-          <Text style={s.cardTitle}>add a friend</Text>
-          <Text style={s.cardSub}>grow your orbit!</Text>
-          <View style={s.phoneRow}>
-            <Text style={{ fontSize: 14 }}>🇺🇸 ▾</Text>
-            <TextInput
-              style={s.phoneInput}
-              placeholder="Mobile number..."
-              placeholderTextColor="#888"
-              value={val}
-              onChangeText={setVal}
-              keyboardType="phone-pad"
-              autoFocus
-            />
-            <Pressable onPress={async () => {
-              setSearching(true);
-              await onSearch(val);
-              setSearching(false);
-            }}>
-              <Text style={{ fontSize: 18 }}>{searching ? '⏳' : '🔍'}</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+          keyboardVerticalOffset={80}
+          style={{ width: '100%', alignItems: 'center' }}
+        >
+          <Pressable
+            style={[s.card, { marginBottom: 40, width: '95%', maxWidth: 360, paddingHorizontal: 28, paddingVertical: 30 }]}
+            onPress={() => {}}
+          >
+            <Pressable style={s.xBtn} onPress={onClose}>
+              <Text style={s.xTxt}>✕</Text>
             </Pressable>
-          </View>
-          <Pressable onPress={onBack} style={{ marginTop: 14 }}>
-            <Text style={s.backTxt}>← BACK</Text>
+
+            <Text style={s.cardTitle}>add a friend</Text>
+            <Text style={s.cardSub}>enter their mobile number</Text>
+
+            {/* Phone input */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              backgroundColor: '#f0ebff', borderRadius: 12,
+              borderWidth: 1.5, borderColor: '#1a1a1a',
+              paddingHorizontal: 12, paddingVertical: 10,
+              marginTop: 20, width: '100%', gap: 8,
+            }}>
+              <Text style={{ fontSize: 18 }}>🇺🇸</Text>
+              <Text style={{ fontSize: 13, color: '#555' }}>+1</Text>
+              <TextInput
+                style={{ flex: 1, fontSize: 16, color: '#1a1a1a', fontWeight: '600', paddingVertical: 2 }}
+                placeholder="(555) 000-0000"
+                placeholderTextColor="#aaa"
+                value={val}
+                onChangeText={(t) => { setVal(t); setFoundUser(null); setError(''); setSent(false); }}
+                keyboardType="phone-pad"
+                autoFocus
+                returnKeyType="done"
+              />
+              {val.length > 0 && (
+                <Pressable onPress={() => { setVal(''); setFoundUser(null); setError(''); }}>
+                  <Text style={{ fontSize: 16, color: '#aaa' }}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Found state */}
+            {foundUser && !sent && (
+              <View style={{
+                marginTop: 16, width: '100%',
+                backgroundColor: 'rgba(255,255,255,0.6)',
+                borderRadius: 12, padding: 14, alignItems: 'center', gap: 10,
+              }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#1a1a1a' }}>
+                  👤 {foundUser.first_name} {foundUser.last_name}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#555' }}>found! send them a request?</Text>
+                <Pressable onPress={handleSendRequest} style={[s.optBtn, { width: '100%', marginTop: 4 }]}>
+                  <Text style={s.optTxt}>✉️  SEND REQUEST</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Sent state */}
+            {sent && (
+              <View style={{ marginTop: 16, alignItems: 'center' }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#1a1a1a' }}>
+                  ✅ Request sent!
+                </Text>
+              </View>
+            )}
+
+            {/* Error state */}
+            {error !== '' && (
+              <Text style={{ marginTop: 12, fontSize: 13, color: '#c0392b', textAlign: 'center' }}>
+                {error}
+              </Text>
+            )}
+
+            {/* Search button — hidden once user is found or request sent */}
+            {!foundUser && !sent && (
+              <Pressable
+                onPress={handleSearch}
+                style={[s.optBtn, { marginTop: 16, width: '100%', opacity: val.trim() ? 1 : 0.4 }]}
+                disabled={!val.trim() || searching}
+              >
+                <Text style={s.optTxt}>
+                  {searching ? '⏳  SEARCHING...' : '🔍  FIND FRIEND'}
+                </Text>
+              </Pressable>
+            )}
+
+            <Pressable onPress={onBack} style={{ marginTop: 14 }}>
+              <Text style={s.backTxt}>← BACK</Text>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -280,9 +410,6 @@ function NotOnTetherModal({
           <Pressable style={[s.optBtn, { marginTop: 16, width: '100%' }]}>
             <Text style={s.optTxt}>✉️  SEND AN INVITE</Text>
           </Pressable>
-          <Pressable onPress={onBack} style={{ marginTop: 14 }}>
-            <Text style={s.backTxt}>← BACK</Text>
-          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -306,9 +433,7 @@ function DraggableAvatar({
   const dragging = useRef(false);
 
   useEffect(() => {
-    if (!dragging.current) {
-      pan.setValue({ x: node.x, y: node.y });
-    }
+    if (!dragging.current) pan.setValue({ x: node.x, y: node.y });
   }, [node.x, node.y, pan]);
 
   const responder = useMemo(
@@ -322,39 +447,27 @@ function DraggableAvatar({
         onPanResponderGrant: () => {
           dragging.current = false;
           onSelect(null);
-
           holdTimer.current = setTimeout(() => {
             if (!dragging.current) onSelect(node.user.id);
           }, 700);
-
-          pan.setOffset({
-            x: (pan.x as any).__getValue(),
-            y: (pan.y as any).__getValue(),
-          });
+          pan.setOffset({ x: (pan.x as any).__getValue(), y: (pan.y as any).__getValue() });
           pan.setValue({ x: 0, y: 0 });
         },
 
         onPanResponderMove: (_, gesture) => {
           dragging.current = true;
           if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
-
           const rawX = (pan.x as any)._offset + gesture.dx;
           const rawY = (pan.y as any)._offset + gesture.dy;
           const next = clampToOrbit(rawX, rawY);
-
-          pan.setValue({
-            x: next.x - (pan.x as any)._offset,
-            y: next.y - (pan.y as any)._offset,
-          });
+          pan.setValue({ x: next.x - (pan.x as any)._offset, y: next.y - (pan.y as any)._offset });
         },
 
         onPanResponderRelease: (_, gesture) => {
           if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
-
           const rawX = (pan.x as any)._offset + gesture.dx;
           const rawY = (pan.y as any)._offset + gesture.dy;
           const next = clampToOrbit(rawX, rawY);
-
           pan.flattenOffset();
           pan.setValue(next);
           dragging.current = false;
@@ -385,18 +498,13 @@ function DraggableAvatar({
         zIndex: isSelected ? 99 : 2,
       }}
     >
-      <View
-        style={{
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-          borderRadius: AVATAR_SIZE / 2,
-          backgroundColor: node.color,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: isEditing ? 1.5 : 0,
-          borderColor: isSelected ? '#ff4444' : '#aaa',
-        }}
-      >
+      <View style={{
+        width: AVATAR_SIZE, height: AVATAR_SIZE,
+        borderRadius: AVATAR_SIZE / 2, backgroundColor: node.color,
+        alignItems: 'center', justifyContent: 'center',
+        borderWidth: isEditing ? 1.5 : 0,
+        borderColor: isSelected ? '#ff4444' : '#aaa',
+      }}>
         <Text style={{ fontSize: 17 }}>{node.user.avatar}</Text>
       </View>
 
@@ -415,15 +523,13 @@ function DraggableAvatar({
       )}
 
       {isSelected && (
-        <View
-          style={{
-            position: 'absolute', bottom: AVATAR_SIZE + 6, left: -42,
-            backgroundColor: '#fff', borderRadius: 20,
-            paddingVertical: 4, paddingHorizontal: 10,
-            shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
-            minWidth: 130,
-          }}
-        >
+        <View style={{
+          position: 'absolute', bottom: AVATAR_SIZE + 6, left: -42,
+          backgroundColor: '#fff', borderRadius: 20,
+          paddingVertical: 4, paddingHorizontal: 10,
+          shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
+          minWidth: 130,
+        }}>
           <Text style={{ fontSize: 10, color: '#333', fontWeight: '600' }}>✕ Remove from orbit</Text>
         </View>
       )}
@@ -444,7 +550,6 @@ function OrbitView({
   onMove: (id: string, x: number, y: number) => void;
 }) {
   const innerDiameter = INNER_RING_RADIUS * 2;
-
   return (
     <Pressable
       onPress={() => onSelect(null)}
@@ -454,10 +559,8 @@ function OrbitView({
         <View style={{ width: ORBIT_SIZE, height: ORBIT_SIZE, borderRadius: ORBIT_RADIUS, borderWidth: RING_STROKE_WIDTH, borderColor: '#ccc' }} />
         <View style={{ position: 'absolute', width: innerDiameter, height: innerDiameter, borderRadius: INNER_RING_RADIUS, borderWidth: RING_STROKE_WIDTH, borderColor: '#ccc' }} />
       </View>
-
       <Text style={[s.ringLabel, { top: ORBIT_SIZE * 0.72, left: ORBIT_SIZE * 0.30 }]}>INNER RING</Text>
       <Text style={[s.ringLabel, { top: ORBIT_SIZE * 0.89, left: ORBIT_SIZE * 0.02 }]}>OUTER RING</Text>
-
       {nodes.map(node => (
         <DraggableAvatar
           key={node.user.id}
@@ -488,26 +591,29 @@ export default function CirclePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nodes, setNodes] = useState<FriendNode[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const prevRingRef = useRef<Record<string, Ring>>({});
 
-  // ── Load circle from DB on mount ──────────────────────────────────────────
+  // Load current user ID once
+  useEffect(() => {
+    AsyncStorage.getItem('user_id').then(setCurrentUserId);
+  }, []);
+
+  // Load circle from DB on mount
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       try {
         setLoading(true);
         setError(null);
         const members = await fetchCircle();
         if (cancelled) return;
-
         const initialNodes: FriendNode[] = members.map((m, i) => {
           const ring: Ring = m.circle_type;
           const radius = ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72;
           const angle = (i / Math.max(members.length, 1)) * Math.PI * 2;
           const { x, y } = polarToXY(angle, radius);
-
           const user: User = {
             id: m.member_user_id,
             name: `${m.first_name} ${m.last_name}`,
@@ -517,11 +623,9 @@ export default function CirclePage() {
             location: m.location ?? '',
             status: m.bio ?? '',
           };
-
           prevRingRef.current[m.member_user_id] = ring;
           return { user, ring, color: AVATAR_COLORS[i % AVATAR_COLORS.length], x, y };
         });
-
         setNodes(initialNodes);
       } catch (err) {
         console.error('Circle load error:', err);
@@ -530,17 +634,15 @@ export default function CirclePage() {
         if (!cancelled) setLoading(false);
       }
     }
-
     load();
     return () => { cancelled = true; };
   }, []);
 
-  // ── Remove ────────────────────────────────────────────────────────────────
+  // Remove
   const handleRemove = async (id: string) => {
     setNodes(prev => prev.filter(n => n.user.id !== id));
     setSelectedId(null);
     delete prevRingRef.current[id];
-
     try {
       await removeFriendFromCircle(id);
     } catch {
@@ -548,133 +650,43 @@ export default function CirclePage() {
     }
   };
 
-  // ── Move ──────────────────────────────────────────────────────────────────
+  // Move
   const handleMove = async (id: string, x: number, y: number) => {
     const d = Math.sqrt(x * x + y * y);
     const newRing: Ring = d <= INNER_SAFE_RADIUS ? 'inner' : 'outer';
     const oldRing = prevRingRef.current[id];
-
-    setNodes(prev =>
-      prev.map(n => n.user.id !== id ? n : { ...n, x, y, ring: newRing })
-    );
-
+    setNodes(prev => prev.map(n => n.user.id !== id ? n : { ...n, x, y, ring: newRing }));
     if (newRing !== oldRing) {
       prevRingRef.current[id] = newRing;
       try {
         await updateCircleRing(id, newRing);
       } catch {
         console.error('Failed to update ring in DB — rolling back');
-        setNodes(prev =>
-          prev.map(n => n.user.id !== id ? n : { ...n, ring: oldRing })
-        );
+        setNodes(prev => prev.map(n => n.user.id !== id ? n : { ...n, ring: oldRing }));
         prevRingRef.current[id] = oldRing;
       }
     }
   };
 
-
-const handleFromContacts = async () => {
-  const { status } = await Contacts.requestPermissionsAsync();
-
-  if (status !== 'granted') {
-    Alert.alert('Permission Denied', 'Please allow contacts access in your phone settings.');
-    return;
-  }
-
-  const { data } = await Contacts.getContactsAsync({
-    fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.FirstName, Contacts.Fields.LastName],
-  });
-
-  if (!data.length) {
-    Alert.alert('No contacts found');
-    return;
-  }
-
-  // Show native contact picker
-  const contact = await Contacts.presentContactPickerAsync();
-
-  if (!contact) return; // user cancelled
-
-  const phone = contact.phoneNumbers?.[0]?.number;
-
-  if (!phone) {
-    Alert.alert('No phone number', `${contact.firstName} doesn't have a phone number saved.`);
-    return;
-  }
-
-  // Reuse the same search logic
-  setModal('none');
-  await handleSearch(phone);
-};
-
-
-
-
-
-
-
-
-
-
-
-
-  // ── Search by phone ───────────────────────────────────────────────────────
-  const handleSearch = async (phone: string) => {
-    if (!phone.trim()) return;
-
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      const res = await fetch(`${getBaseUrl()}/users/search?phone=${encodeURIComponent(phone)}`);
-
-      if (res.status === 404) {
-        setSearchedName(phone);
-        setModal('notOnTether');
-        return;
-      }
-
-      if (!res.ok) throw new Error('Search failed');
-
-      const data = await res.json();
-      const found = data.user;
-
-      // Add to circle in DB
-      const addRes = await fetch(`${getBaseUrl()}/circle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          friend_id: found.id,
-          circle_type: 'outer',
-        }),
-      });
-
-      if (!addRes.ok) throw new Error('Failed to add friend');
-
-      // Add to local state immediately
-      const newNode: FriendNode = {
-        user: {
-          id: found.id,
-          name: `${found.first_name} ${found.last_name}`,
-          ringLevel: 'friends',
-          avatar: '🙂',
-          handle: `@${found.first_name.toLowerCase()}`,
-          location: found.location ?? '',
-          status: found.bio ?? '',
-        },
-        ring: 'outer',
-        color: AVATAR_COLORS[nodes.length % AVATAR_COLORS.length],
-        x: OUTER_SAFE_RADIUS * 0.72,
-        y: 0,
-      };
-
-      setNodes(prev => [...prev, newNode]);
-      setModal('none');
-      Alert.alert('✅ Added!', `${found.first_name} was added to your outer ring.`);
-
-    } catch (err) {
-      console.error('Search error:', err);
-      Alert.alert('Error', 'Something went wrong. Try again.');
+  // From contacts
+  const handleFromContacts = async () => {
+    const { status } = await Contacts.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Please allow contacts access in your phone settings.');
+      return;
     }
+    const { data } = await Contacts.getContactsAsync({
+      fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.FirstName, Contacts.Fields.LastName],
+    });
+    if (!data.length) { Alert.alert('No contacts found'); return; }
+    const contact = await Contacts.presentContactPickerAsync();
+    if (!contact) return;
+    const phone = contact.phoneNumbers?.[0]?.number;
+    if (!phone) {
+      Alert.alert('No phone number', `${contact.firstName} doesn't have a phone number saved.`);
+      return;
+    }
+    setModal('addByPhone');
   };
 
   const handleTabPress = (tab: NavTabId) => {
@@ -686,10 +698,7 @@ const handleFromContacts = async () => {
     }
   };
 
-  const stopEditing = () => {
-    setIsEditing(false);
-    setSelectedId(null);
-  };
+  const stopEditing = () => { setIsEditing(false); setSelectedId(null); };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -748,24 +757,20 @@ const handleFromContacts = async () => {
         </ScrollView>
       </SafeAreaView>
 
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={handleTabPress}
-        onAddPress={() => setSheetOpen(true)}
-      />
+      <Navbar activeTab={activeTab} setActiveTab={handleTabPress} onAddPress={() => setSheetOpen(true)} />
 
       <AddSidequestSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />
       <AddFriendModal
         visible={modal === 'addFriend'}
         onClose={() => setModal('none')}
         onByPhone={() => setModal('addByPhone')}
-        onFromContacts={handleFromContacts}  
+        onFromContacts={handleFromContacts}
       />
       <AddByPhoneModal
         visible={modal === 'addByPhone'}
         onClose={() => setModal('none')}
         onBack={() => setModal('addFriend')}
-        onSearch={handleSearch}
+        currentUserId={currentUserId}
       />
       <NotOnTetherModal
         visible={modal === 'notOnTether'}
@@ -790,7 +795,7 @@ const s = StyleSheet.create({
   actions: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', maxWidth: 320, paddingHorizontal: 16 },
   linkBtn: { fontSize: 12, color: '#1a1a1a', letterSpacing: 1, fontWeight: '500', paddingVertical: 8, paddingHorizontal: 4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.12)', justifyContent: 'flex-end', paddingBottom: 100, alignItems: 'center' },
-  card: { backgroundColor: '#c4b5fd', borderRadius: 20, padding: 28, width: '88%', maxWidth: 340, alignItems: 'center' },
+  card: { backgroundColor: '#c4b5fd', borderRadius: 20, padding: 28, width: '88%', maxWidth: 390, alignItems: 'center' },
   xBtn: { position: 'absolute', top: 14, right: 16, padding: 4 },
   xTxt: { fontSize: 16, color: '#555' },
   cardTitle: { fontSize: 22, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginTop: 8 },
