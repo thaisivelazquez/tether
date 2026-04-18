@@ -145,7 +145,7 @@ export default function ProfilePage() {
   </Pressable>
 
   <Pressable
-    style={styles.logoutBtn}
+    
     onPress={() =>
       Alert.alert('Log out', 'Are you sure you want to log out?', [
         { text: 'Cancel', style: 'cancel' },
@@ -153,7 +153,7 @@ export default function ProfilePage() {
       ])
     }
   >
-    <Text style={styles.logoutBtnText}>LOG OUT</Text>
+    <Text>LOG OUT</Text>
   </Pressable>
 </View>
 
