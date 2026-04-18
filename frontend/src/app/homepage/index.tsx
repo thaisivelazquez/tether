@@ -329,11 +329,23 @@ function SidequestDetailModal({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [joining, setJoining] = useState(false);         // ← NEW
 
   const isOwner = useMemo(() => {
     if (!sidequest || !currentUserId) return false;
     return String(sidequest.postedBy?.id) === String(currentUserId);
   }, [sidequest, currentUserId]);
+
+  // ← NEW: check if current user is already an attendee
+  const isAttendee = useMemo(() => {
+    if (!sidequest || !currentUserId) return false;
+    return sidequest.attendees.some((a) => String(a.id) === String(currentUserId));
+  }, [sidequest, currentUserId]);
+
+  const isFull = useMemo(() => {
+    if (!sidequest) return false;
+    return sidequest.attendees.length >= sidequest.maxAttendees;
+  }, [sidequest]);
 
   useEffect(() => { setEditing(false); }, [sidequest?.id]);
 
@@ -376,6 +388,47 @@ function SidequestDetailModal({
       Alert.alert('Error', 'Network error while deleting');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // ← NEW: join handler
+  const handleJoin = async () => {
+    if (!sidequest || !currentUserId) { Alert.alert('Error', 'User not loaded. Try again.'); return; }
+    setJoining(true);
+    try {
+      const res = await fetch(
+        `${getBaseUrl()}/events/${sidequest.id}/attend`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUserId }),
+        }
+      );
+      const text = await res.text();
+      if (!res.ok) { Alert.alert('Error', text || 'Failed to join'); return; }
+
+      // Optimistically parse updated attendee list from response if available,
+      // otherwise just re-fetch by pushing the current user as a placeholder
+      let updatedSidequest: Sidequest;
+      try {
+        const json = JSON.parse(text);
+        updatedSidequest = json; // if backend returns the full updated event
+      } catch {
+        // fallback: optimistically add user to attendees list
+        updatedSidequest = {
+          ...sidequest,
+          attendees: [
+            ...sidequest.attendees,
+            { id: currentUserId, name: 'You', location: '' },
+          ],
+        };
+      }
+      onUpdated(updatedSidequest);
+      Alert.alert('Joined!', `You're going to ${sidequest.title} 🎉`);
+    } catch {
+      Alert.alert('Error', 'Network error while joining');
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -443,6 +496,41 @@ function SidequestDetailModal({
                   ))
                 )}
               </View>
+
+              {/* ← NEW: Join button for non-owners */}
+              {!isOwner && (
+                <View style={{ marginTop: rs(30) }}>
+                  {isAttendee ? (
+                    <View style={{ padding: rs(14), backgroundColor: '#1a3d1a', borderRadius: rs(12) }}>
+                      <Text style={{ color: '#4dff88', textAlign: 'center', fontSize: rs(14) }}>
+                        ✅ You're going!
+                      </Text>
+                    </View>
+                  ) : isFull ? (
+                    <View style={{ padding: rs(14), backgroundColor: '#2d2d2d', borderRadius: rs(12) }}>
+                      <Text style={{ color: '#888', textAlign: 'center', fontSize: rs(14) }}>
+                        😔 This sidequest is full
+                      </Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={handleJoin}
+                      disabled={joining}
+                      style={({ pressed }) => ({
+                        padding: rs(14),
+                        backgroundColor: '#c8b1db',
+                        borderRadius: rs(12),
+                        opacity: pressed || joining ? 0.7 : 1,
+                        alignItems: 'center',
+                      })}
+                    >
+                      <Text style={{ color: '#fff', fontSize: rs(15), fontWeight: '700' }}>
+                        {joining ? 'Joining...' : '🙋 Join Sidequest'}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
 
               {isOwner && (
                 <View style={{ marginTop: rs(30) }}>

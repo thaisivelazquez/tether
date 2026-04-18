@@ -204,8 +204,101 @@ router.patch("/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ─── POST /events/:id/join ───────────────────────────────────────────────────
+router.post("/:id/join", async (req, res) => {
+  const { id } = req.params;
+  const { user_id } = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id is required" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const sidequestResult = await client.query(
+      `
+      SELECT
+        s.*,
+        u.first_name AS poster_first_name,
+        u.last_name AS poster_last_name,
+        u.location AS poster_location
+      FROM sidequests s
+      LEFT JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+      FOR UPDATE
+      `,
+      [id]
+    );
+
+    if (sidequestResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Sidequest not found" });
+    }
+
+    const sidequest = sidequestResult.rows[0];
+
+    if (String(sidequest.user_id) === String(user_id)) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "You already own this sidequest" });
+    }
+
+    const existingAttendee = await client.query(
+      `
+      SELECT 1
+      FROM event_attendees
+      WHERE sidequest_id = $1 AND user_id = $2
+      `,
+      [id, user_id]
+    );
+
+    if (existingAttendee.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "You already joined this sidequest" });
+    }
+
+    const attendeeCountResult = await client.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM event_attendees
+      WHERE sidequest_id = $1
+      `,
+      [id]
+    );
+
+    const attendeeCount = attendeeCountResult.rows[0].count;
+    const maxAttendees = sidequest.max_attendees ?? 1;
+
+    if (attendeeCount >= maxAttendees) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "This sidequest is full" });
+    }
+
+    await client.query(
+      `
+      INSERT INTO event_attendees (sidequest_id, user_id)
+      VALUES ($1, $2)
+      `,
+      [id, user_id]
+    );
+
+    await client.query("COMMIT");
+
+    const attendees = await getAttendees(id);
+    return res.status(200).json(rowToSidequest(sidequest, attendees));
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("[POST /events/:id/join]", err);
+    return res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 async function getAttendees(sidequestId) {
   const { rows } = await pool.query(`

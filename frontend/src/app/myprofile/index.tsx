@@ -110,28 +110,52 @@ export default function ProfilePage() {
         new Date(a.createdAt).getTime()
     );
   }, [sidequests]);
+  const handleLogout = async () => {
+  try {
+    await AsyncStorage.multiRemove(['user_id', 'token']);
+    router.replace('/login'); // change this if your login route is different
+  } catch (error) {
+    console.error('Logout error:', error);
+    Alert.alert('Error', 'Could not log out. Please try again.');
+  }
+};
 
   return (
+    
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
+        
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 140 }}
         >
           {/* Top Bar */}
+          
           <View style={styles.topBar}>
-            <View style={{ width: 28 }} />
-            <Pressable
-              onPress={() => router.push('/myprofile/edit')}
-              style={styles.editIconWrap}
-            >
-              <Image
-                source={EditButtonImg}
-                style={{ width: 22, height: 22 }}
-                resizeMode="contain"
-              />
-            </Pressable>
-          </View>
+  <Pressable
+    onPress={() => router.push('/myprofile/edit')}
+    style={styles.editIconWrap}
+  >
+    <Image
+      source={EditButtonImg}
+      style={{ width: 22, height: 22 }}
+      resizeMode="contain"
+    />
+  </Pressable>
+
+  <Pressable
+    style={styles.logoutBtn}
+    onPress={() =>
+      Alert.alert('Log out', 'Are you sure you want to log out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log out', style: 'destructive', onPress: handleLogout },
+      ])
+    }
+  >
+    <Text style={styles.logoutBtnText}>LOG OUT</Text>
+  </Pressable>
+</View>
 
           {/* Profile */}
           <View style={styles.hero}>
@@ -172,10 +196,11 @@ export default function ProfilePage() {
     }
   }}
 >
+  
   <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
 </Pressable>
           </View>
-
+          
           {/* Sidequests */}
           <View style={styles.section}>
             <Text style={styles.bigSectionTitle}>
@@ -193,8 +218,11 @@ export default function ProfilePage() {
               ))}
             </View>
           </View>
+          
         </ScrollView>
+
       </SafeAreaView>
+    
 
       <AddSidequestSheet
         visible={sheetOpen}
@@ -341,6 +369,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  
 });
 
 const localStyles = StyleSheet.create({
@@ -369,5 +398,6 @@ const localStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#333',
-  },
+  }
+
 });
