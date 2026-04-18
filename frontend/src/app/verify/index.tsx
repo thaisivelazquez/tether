@@ -35,7 +35,7 @@ const VISIBLE = 3;
 const LOOPED = [...ACTIVITIES, ...ACTIVITIES, ...ACTIVITIES];
 
 export default function VerifyPage() {
-  const { email } = useLocalSearchParams<{ email?: string }>();
+  
   const router = useRouter();
 
   // 5-digit code
@@ -46,6 +46,7 @@ export default function VerifyPage() {
   const [countdown, setCountdown] = useState(10);
   const inputs = useRef<(TextInput | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
+  const { email, phone } = useLocalSearchParams<{ email?: string; phone?: string }>();
 
   // Mask email: "jo•••@gmail.com"
   const maskedEmail = email
@@ -112,12 +113,13 @@ export default function VerifyPage() {
 
     setResendLoading(true);
     setError("");
-
+    
     try {
       const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, phone }),
+        
       });
 
       const data = await res.json();

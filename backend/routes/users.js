@@ -166,6 +166,22 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// // GET /users/by-phone/:phone  ← MUST be before /:id
+router.get("/by-phone/:phone", async (req, res) => {
+  const raw = decodeURIComponent(req.params.phone);
+  const digits = raw.replace(/\D/g, "");
+  const normalized = `+${digits.startsWith("1") ? digits : "1" + digits}`;
+  try {
+    const { rows } = await pool.query("SELECT * FROM users WHERE phone = $1", [normalized]);
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+    return res.json({ user: rows[0] });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
+
 // PATCH /users/:id
 router.patch("/:id", async (req, res) => {
   const { id } = req.params;

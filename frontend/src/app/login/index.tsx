@@ -70,48 +70,53 @@ export default function LoginPage() {
 
   const isFormValid = isValidPhone(phone) && isValidEmail(email);
 
-  const handleSubmit = async () => {
-    if (!isValidPhone(phone)) {
-      setError("Please enter a valid phone number.");
-      return;
-    }
-    if (!isValidEmail(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
+const handleSubmit = async () => {
+  if (!isValidPhone(phone)) {
+    setError("Please enter a valid phone number.");
+    return;
+  }
+  if (!isValidEmail(email)) {
+    setError("Please enter a valid email address.");
+    return;
+  }
 
-    setError("");
-    setLoading(true);
+  setError("");
+  setLoading(true);
 
-    try {
-      const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
+  try {
+    const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, "")}`;
 
-      const data = await res.json();
+    const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        phone: fullPhone,
+      }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || "Failed to send code.");
-        setLoading(false);
-        return;
-      }
+    const data = await res.json();
 
-      router.push({
-        pathname: "/verify",
-        params: {
-          email: email.trim().toLowerCase(),
-          phone,
-          countryCode: selectedCountry.code,
-        },
-      });
-    } catch (err) {
-      setError("Could not reach server. Is it running?");
-    } finally {
+    if (!res.ok) {
+      setError(data.error || "Failed to send code.");
       setLoading(false);
+      return;
     }
-  };
+
+    router.push({
+      pathname: "/verify",
+      params: {
+        email: email.trim().toLowerCase(),
+        phone: fullPhone,
+        countryCode: selectedCountry.code,
+      },
+    });
+  } catch (err) {
+    setError("Could not reach server. Is it running?");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     const interval = setInterval(() => {

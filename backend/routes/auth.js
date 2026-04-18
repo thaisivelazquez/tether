@@ -72,36 +72,30 @@ const transporter = nodemailer.createTransport({
 const otpStore = {};
 
 router.post("/send-otp", async (req, res) => {
-  const { email } = req.body;
+  const email = req.body?.email?.trim().toLowerCase();
+  const phone = req.body?.phone?.trim();
 
-  if (!email) {
-    return res.status(400).json({ error: "Email is required." });
+  if (!email || !phone) {
+    return res.status(400).json({ error: "Email and phone number are required." });
   }
 
   const code = Math.floor(10000 + Math.random() * 90000).toString();
 
   otpStore[email] = {
     code,
+    email,
+    phone,
     expiresAt: Date.now() + 10 * 60 * 1000,
   };
 
-  console.log(`OTP for ${email}: ${code}`); // backup — visible in terminal
+  console.log("OTP STORE:", otpStore[email]);
 
   try {
     await transporter.sendMail({
       from: `"Tether" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Your Tether verification code",
-      html: `
-        <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 24px;">
-          <h2 style="font-size: 20px; margin-bottom: 8px;">Your verification code</h2>
-          <p style="color: #555; margin-bottom: 24px;">Enter this code in the app to verify your email.</p>
-          <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 16px; background: #f4f4f4; border-radius: 8px;">
-            ${code}
-          </div>
-          <p style="color: #999; font-size: 13px; margin-top: 16px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
-        </div>
-      `,
+      html: `${code}`,
     });
 
     return res.json({ success: true });

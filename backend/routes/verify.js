@@ -150,12 +150,13 @@
 // module.exports = router;
 
 const router = require("express").Router();
-const pool = require("../db");
-const { v4: uuidv4 } = require("uuid");
 const { otpStore } = require("./auth");
+const pool = require("../db");
+const { randomUUID } = require("crypto");
 
 router.post("/check-otp", async (req, res) => {
-  const { email, otp } = req.body;
+  const email = req.body?.email?.trim().toLowerCase();
+  const otp = req.body?.otp?.trim();
 
   if (!email || !otp) {
     return res.status(400).json({ error: "Email and code are required." });
@@ -164,45 +165,53 @@ router.post("/check-otp", async (req, res) => {
   const record = otpStore[email];
 
   if (!record) {
-    return res.status(401).json({ error: "No code found. Please request a new one." });
+    return res.status(400).json({ error: "No OTP found for this email." });
   }
 
   if (Date.now() > record.expiresAt) {
     delete otpStore[email];
-    return res.status(401).json({ error: "Code expired. Please request a new one." });
+    return res.status(400).json({ error: "Code expired." });
   }
 
   if (record.code !== otp) {
-    return res.status(401).json({ error: "Incorrect code. Please try again." });
+    return res.status(400).json({ error: "Invalid code." });
   }
 
-  delete otpStore[email];
-
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM users WHERE email = $1 LIMIT 1",
-      [email]
+    // Check if user already exists BEFORE upsert
+    const existing = await pool.query(
+      `SELECT id FROM public.users WHERE email = $1`,
+      [record.email]
+    );
+    const isNewUser = existing.rows.length === 0;
+
+    // Upsert — always updates phone in case it changed
+    await pool.query(
+      `
+      INSERT INTO public.users (id, email, phone, first_name, last_name)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (email)
+      DO UPDATE SET phone = EXCLUDED.phone
+      `,
+      [randomUUID(), record.email, record.phone, "", ""]
     );
 
-    if (rows.length > 0) {
-      await pool.query(
-        "UPDATE users SET last_used = NOW() WHERE email = $1",
-        [email]
-      );
-      return res.json({ status: "existing_user", user: rows[0] });
-    } else {
-const newUserId = uuidv4();
-await pool.query(
-  `INSERT INTO users (id, email, phone, first_name, last_name, date_signed_up, last_used)
-   VALUES ($1, $2, $3, '', '', NOW(), NOW())`,
-  [newUserId, email, '']
-);
-return res.json({ status: "new_user", user: { id: newUserId, email } });
-      return res.json({ status: "new_user", user: { id: newUserId, email } });
-    }
+    // Fetch the real user id (INSERT may have lost to ON CONFLICT)
+    const user = await pool.query(
+      `SELECT id FROM public.users WHERE email = $1`,
+      [record.email]
+    );
+
+    delete otpStore[email];
+
+    return res.json({
+      success: true,
+      status: isNewUser ? "new_user" : "existing_user",
+      user: { id: user.rows[0].id },
+    });
   } catch (err) {
-    console.error("DB error:", err.message);
-    return res.status(500).json({ error: "Server error. Please try again." });
+    console.error("VERIFY ERROR:", err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
