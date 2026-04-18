@@ -114,7 +114,7 @@ function SidequestCard({
         <Text style={cardStyles.title}>{sidequest.title}</Text>
         <View style={[cardStyles.badge, isCloseFriends ? cardStyles.badgeCF : cardStyles.badgeAll]}>
           <Text style={cardStyles.badgeText}>
-            {isCloseFriends ? '🔒 close friends' : '🌍 everyone'}
+            {isCloseFriends ? 'close friends' : 'everyone'}
           </Text>
         </View>
       </View>
@@ -708,12 +708,12 @@ const localStyles = StyleSheet.create({
 
 const cardStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#9b9494',
     borderRadius: rs(16),
     padding: rs(16),
     marginBottom: rs(12),
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: '#9b9494',
   },
   headerRow: {
     flexDirection: 'row',
@@ -725,11 +725,11 @@ const cardStyles = StyleSheet.create({
   badge: { borderRadius: 999, paddingHorizontal: rs(8), paddingVertical: rs(3) },
   badgeCF: { backgroundColor: '#2d1f3d' },
   badgeAll: { backgroundColor: '#1a2d1f' },
-  badgeText: { color: '#c8b1db', fontSize: rs(11), fontWeight: '600' },
-  desc: { color: '#999', fontSize: rs(13), marginBottom: rs(10), lineHeight: rs(18) },
+  badgeText: { color: '#dfdbe1', fontSize: rs(11), fontWeight: '600' },
+  desc: { color: '#ffffff', fontSize: rs(13), marginBottom: rs(10), lineHeight: rs(18) },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: rs(4), gap: rs(4) },
-  meta: { color: '#777', fontSize: rs(12) },
-  poster: { color: '#555', fontSize: rs(11), marginTop: rs(8), fontStyle: 'italic' },
+  meta: { color: '#ffffff', fontSize: rs(12) },
+  poster: { color: '#ffffff', fontSize: rs(11), marginTop: rs(8), fontStyle: 'italic' },
 });
 
 const formStyles = StyleSheet.create({
@@ -833,6 +833,6 @@ const localButtonStyles = StyleSheet.create({
   closeImg: {
     width: rs(150),
     height: rs(66),
-    marginLeft: rs(20),  // ✅ nudges it to the right
+    marginLeft: rs(20), 
   },
 });

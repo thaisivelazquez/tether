@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#000000',
     borderRadius: 999,
     padding: 10,
   },
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#000000',
     borderRadius: 12,
     padding: 12,
     color: '#fff',
