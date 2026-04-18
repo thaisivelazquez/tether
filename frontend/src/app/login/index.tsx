@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -9,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -135,6 +137,7 @@ export default function LoginPage() {
   }, [scrollY]);
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <SafeAreaView style={styles.root}>
       {/* Decorations */}
       <View style={[styles.decoWrap, { pointerEvents: "none" }]}>
@@ -239,23 +242,24 @@ export default function LoginPage() {
               />
             </View>
           </View>
-
-          {/* Email input */}
-          <View style={[styles.phonePill, { marginTop: scale(10), paddingHorizontal: scale(14) }]}>
-            <TextInput
-              style={[styles.phoneInput, { fontSize: moderateScale(15), width: "100%" }]}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              placeholder="email address"
-              placeholderTextColor="#aaa"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (error) setError("");
-              }}
-            />
-          </View>
+{/* Email row */}
+<View style={styles.phoneRow}>
+  <View style={styles.phonePill}>
+    <TextInput
+      style={[styles.phoneInput, { fontSize: moderateScale(15) }]}
+      keyboardType="email-address"
+      autoCapitalize="none"
+      autoComplete="email"
+      placeholder="email address"
+      placeholderTextColor="#aaa"
+      value={email}
+      onChangeText={(text) => {
+        setEmail(text);
+        if (error) setError("");
+      }}
+    />
+  </View>
+</View>
 
           {error ? (
             <Text style={{ color: "red", marginTop: 8, fontSize: 13 }}>
@@ -319,5 +323,6 @@ export default function LoginPage() {
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
