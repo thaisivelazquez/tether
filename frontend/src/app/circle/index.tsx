@@ -418,7 +418,7 @@ function AddByPhoneModal({
                 }}
                 keyboardType="phone-pad"
                 autoFocus
-                returnKeyType="done"
+               
               />
 
               {val.length > 0 && (
