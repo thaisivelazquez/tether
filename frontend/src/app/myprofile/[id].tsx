@@ -1,20 +1,20 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://172.19.8.233:3000';
+    : 'http://172.19.0.229:3000';
 
 type User = {
   first_name: string;

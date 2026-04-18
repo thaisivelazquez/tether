@@ -42,7 +42,7 @@ const DISMISS_THRESHOLD = 120;
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://172.19.8.233:3000';
+    : 'http://172.19.0.229:3000';
 
 type Sidequest = {
   id: string;

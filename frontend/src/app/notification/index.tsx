@@ -2,18 +2,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    GestureResponderEvent,
-    PanResponder,
-    PanResponderGestureState,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  GestureResponderEvent,
+  PanResponder,
+  PanResponderGestureState,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
@@ -26,7 +26,7 @@ const SWIPE_THRESHOLD = 80;
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://172.19.8.233:3000';
+    : 'http:172.19.0.229:3000';
 
 type FriendRequest = {
   id: string;
@@ -72,10 +72,18 @@ function SwipeableCard({
         _: GestureResponderEvent,
         g: PanResponderGestureState
       ) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderMove: (_: GestureResponderEvent, g: PanResponderGestureState) => {
+
+      onPanResponderMove: (
+        _: GestureResponderEvent,
+        g: PanResponderGestureState
+      ) => {
         if (g.dx < 0) translateX.setValue(g.dx);
       },
-      onPanResponderRelease: (_: GestureResponderEvent, g: PanResponderGestureState) => {
+
+      onPanResponderRelease: (
+        _: GestureResponderEvent,
+        g: PanResponderGestureState
+      ) => {
         if (g.dx < -SWIPE_THRESHOLD) {
           Animated.timing(translateX, {
             toValue: -SCREEN_WIDTH,
@@ -108,7 +116,9 @@ function SwipeableCard({
           },
         ]}
       >
-        <Text style={{ color: '#fff', fontSize: rs(13), fontWeight: '700' }}>🗑 DELETE</Text>
+        <Text style={{ color: '#fff', fontSize: rs(13), fontWeight: '700' }}>
+          🗑 DELETE
+        </Text>
       </Animated.View>
 
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX }] }}>
@@ -206,7 +216,9 @@ function EventCard({
           </View>
 
           <View style={[n.tag, isCloseFriends ? n.tagCF : n.tagAll]}>
-            <Text style={n.tagTxt}>{isCloseFriends ? '🔒 INNER' : '🌍 ALL'}</Text>
+            <Text style={n.tagTxt}>
+              {isCloseFriends ? '🔒 INNER' : '🌍 ALL'}
+            </Text>
           </View>
         </View>
 
@@ -234,55 +246,55 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-const fetchNotifications = useCallback(async () => {
-  const userId = await AsyncStorage.getItem('user_id');
-  if (!userId) return;
+  const fetchNotifications = useCallback(async () => {
+    const userId = await AsyncStorage.getItem('user_id');
+    if (!userId) return;
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const [reqRes, evtRes] = await Promise.all([
-      fetch(`${getBaseUrl()}/friends/requests?user_id=${userId}`),
-      fetch(`${getBaseUrl()}/events?user_id=${userId}`),
-    ]);
+      const [reqRes, evtRes] = await Promise.all([
+        fetch(`${getBaseUrl()}/friends/requests?user_id=${userId}`),
+        fetch(`${getBaseUrl()}/events?user_id=${userId}`),
+      ]);
 
-    const reqData = reqRes.ok ? await reqRes.json() : { requests: [] };
-    const evtData = evtRes.ok ? await evtRes.json() : [];
+      const reqData = reqRes.ok ? await reqRes.json() : { requests: [] };
+      const evtData = reqRes.ok ? await evtRes.json() : [];
 
-    const friendRequests: FriendRequest[] = (reqData.requests ?? []).map((r: any) => ({
-      ...r,
-      type: 'friend_request' as const,
-    }));
-
-    const eventNotifs: EventNotification[] = (Array.isArray(evtData) ? evtData : [])
-      .filter((e: any) => {
-        const creatorId =
-          e.postedBy?.id ??
-          e.creator_id ??
-          e.user_id ??
-          e.posted_by_id;
-
-        return String(creatorId) !== String(userId);
-      })
-      .map((e: any) => ({
-        id: e.id,
-        type: 'event' as const,
-        event_title: e.title ?? e.event_title ?? '',
-        event_des: e.description ?? e.event_des ?? '',
-        location: e.location ?? '',
-        time_of_event: e.startTime ?? e.time_of_event ?? '',
-        circle_status: e.circleStatus ?? e.circle_status ?? 'everyone',
-        creator_first_name: e.postedBy?.name?.split(' ')[0] ?? e.creator_first_name ?? '',
-        creator_last_name: e.postedBy?.name?.split(' ')[1] ?? e.creator_last_name ?? '',
+      const friendRequests: FriendRequest[] = (reqData.requests ?? []).map((r: any) => ({
+        ...r,
+        type: 'friend_request' as const,
       }));
 
-    setNotifications([...friendRequests, ...eventNotifs]);
-  } catch (err) {
-    console.error('Failed to fetch notifications:', err);
-  } finally {
-    setLoading(false);
-  }
-}, []);
+      const eventNotifs: EventNotification[] = (Array.isArray(evtData) ? evtData : [])
+        .filter((e: any) => {
+          const creatorId =
+            e.postedBy?.id ??
+            e.creator_id ??
+            e.user_id ??
+            e.posted_by_id;
+
+          return String(creatorId) !== String(userId);
+        })
+        .map((e: any) => ({
+          id: e.id,
+          type: 'event' as const,
+          event_title: e.title ?? e.event_title ?? '',
+          event_des: e.description ?? e.event_des ?? '',
+          location: e.location ?? '',
+          time_of_event: e.startTime ?? e.time_of_event ?? '',
+          circle_status: e.circleStatus ?? e.circle_status ?? 'everyone',
+          creator_first_name: e.postedBy?.name?.split(' ')[0] ?? e.creator_first_name ?? '',
+          creator_last_name: e.postedBy?.name?.split(' ')[1] ?? e.creator_last_name ?? '',
+        }));
+
+      setNotifications([...friendRequests, ...eventNotifs]);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -326,33 +338,14 @@ const fetchNotifications = useCallback(async () => {
     setNotifications((prev) => prev.filter((item) => !(item.id === id && item.type === type)));
   };
 
-  const handleTabPress = (tab: NavTabId) => {
-    setActiveTab(tab);
-
-    switch (tab) {
-      case 'home':
-        router.push('/homepage');
-        break;
-      case 'circle':
-        router.push('/circle');
-        break;
-      case 'profile':
-        router.push('/myprofile');
-        break;
-      case 'bell':
-        router.push('/notification');
-        break;
-      default:
-        break;
-    }
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <SafeAreaView style={{ flex: 1, paddingTop: insets.top }}>
         <View style={{ paddingHorizontal: rs(20), paddingTop: rs(16), paddingBottom: rs(8) }}>
           <Text style={n.pageTitle}>notifications</Text>
-          {notifications.length > 0 && <Text style={n.pageSub}>{notifications.length} new</Text>}
+          {notifications.length > 0 && (
+            <Text style={n.pageSub}>{notifications.length} new</Text>
+          )}
         </View>
 
         {loading ? (
@@ -395,6 +388,7 @@ const fetchNotifications = useCallback(async () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onAddPress={() => {}}
+        notificationCount={notifications.length}
       />
     </View>
   );

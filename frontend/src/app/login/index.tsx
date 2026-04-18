@@ -15,11 +15,10 @@ import {
 import Svg, { Circle, Path } from "react-native-svg";
 import { moderateScale, scale, styles } from "../../../components/login/loginstyle";
 
-// ✅ Move this OUTSIDE the component so it's not redefined on every render
 const getBaseUrl = () =>
   Platform.OS === "web"
     ? "http://localhost:3000"
-    : "http://172.19.8.233:3000"; // ← replace with your IP from `ipconfig`
+    : "http://172.19.0.229:3000";
 
 const ACTIVITIES = [
   "studying at butler library till nine",
@@ -45,10 +44,12 @@ export default function LoginPage() {
   const router = useRouter();
 
   const [phone, setPhone] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
+  const [loading, setLoading] = useState(false);
   const { height } = useWindowDimensions();
 
   const scrollY = useRef(
@@ -61,38 +62,52 @@ export default function LoginPage() {
     return digits.length >= 7;
   };
 
+  const isValidEmail = (em: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.trim());
+  };
+
+  const isFormValid = isValidPhone(phone) && isValidEmail(email);
+
   const handleSubmit = async () => {
     if (!isValidPhone(phone)) {
-      setError("Please enter a valid phone number");
+      setError("Please enter a valid phone number.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
     setError("");
+    setLoading(true);
 
     try {
-      // ✅ Uses getBaseUrl() defined at the top
       const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          countryCode: selectedCountry.code,
-        }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         setError(data.error || "Failed to send code.");
+        setLoading(false);
         return;
       }
 
       router.push({
         pathname: "/verify",
-        params: { phone, countryCode: selectedCountry.code },
+        params: {
+          email: email.trim().toLowerCase(),
+          phone,
+          countryCode: selectedCountry.code,
+        },
       });
     } catch (err) {
       setError("Could not reach server. Is it running?");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -190,6 +205,7 @@ export default function LoginPage() {
             Less time planning, more time together.
           </Text>
 
+          {/* Phone row */}
           <View style={styles.phoneRow}>
             <TouchableOpacity
               style={styles.countryPill}
@@ -213,6 +229,8 @@ export default function LoginPage() {
                 style={[styles.phoneInput, { fontSize: moderateScale(15) }]}
                 keyboardType="phone-pad"
                 autoComplete="tel"
+                placeholder="phone number"
+                placeholderTextColor="#aaa"
                 value={phone}
                 onChangeText={(text) => {
                   setPhone(text);
@@ -220,6 +238,23 @@ export default function LoginPage() {
                 }}
               />
             </View>
+          </View>
+
+          {/* Email input */}
+          <View style={[styles.phonePill, { marginTop: scale(10), paddingHorizontal: scale(14) }]}>
+            <TextInput
+              style={[styles.phoneInput, { fontSize: moderateScale(15), width: "100%" }]}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              placeholder="email address"
+              placeholderTextColor="#aaa"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (error) setError("");
+              }}
+            />
           </View>
 
           {error ? (
@@ -232,13 +267,14 @@ export default function LoginPage() {
             style={[
               styles.submitBtn,
               { paddingVertical: height * 0.018 },
-              !isValidPhone(phone) && { opacity: 0.4 },
+              (!isFormValid || loading) && { opacity: 0.4 },
             ]}
             onPress={handleSubmit}
             activeOpacity={0.5}
+            disabled={!isFormValid || loading}
           >
             <Text style={[styles.submitText, { fontSize: moderateScale(15) }]}>
-              sign up/login →
+              {loading ? "sending code..." : "sign up/login →"}
             </Text>
           </TouchableOpacity>
         </View>

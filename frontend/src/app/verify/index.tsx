@@ -19,7 +19,7 @@ import { moderateScale, scale, styles } from "../../../components/verify/verifys
 const getBaseUrl = () =>
   Platform.OS === "web"
     ? "http://localhost:3000"
-    : "http://172.19.8.233:3000";
+    : "http://172.19.0.229:3000";
 
 const ACTIVITIES = [
   "studying at butler library till nine",
@@ -35,13 +35,11 @@ const VISIBLE = 3;
 const LOOPED = [...ACTIVITIES, ...ACTIVITIES, ...ACTIVITIES];
 
 export default function VerifyPage() {
-  const { phone, countryCode } = useLocalSearchParams<{
-    phone?: string;
-    countryCode?: string;
-  }>();
+  const { email } = useLocalSearchParams<{ email?: string }>();
   const router = useRouter();
 
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  // 5-digit code
+  const [code, setCode] = useState(["", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -49,9 +47,10 @@ export default function VerifyPage() {
   const inputs = useRef<(TextInput | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(COUNT);
 
-  const maskedPhone = phone
-    ? `${countryCode ?? ""} ${String(phone)}`
-    : "+ XX XXX-XXX-XXXX";
+  // Mask email: "jo•••@gmail.com"
+  const maskedEmail = email
+    ? email.replace(/(.{2}).+(@.+)/, "$1•••$2")
+    : "your email";
 
   const scrollY = useRef(
     new Animated.Value(-(COUNT * ITEM_HEIGHT) + ITEM_HEIGHT)
@@ -89,22 +88,21 @@ export default function VerifyPage() {
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  // ✅ Handle OTP autofill — iOS pastes full 6-digit code into first input
+  // Handle OTP input — supports autofill paste of 5-digit code
   const handleOtpChange = (text: string, index: number) => {
-    // iPhone autofill pastes full 6-digit string into first box
-    if (text.length === 6 && index === 0) {
+    if (text.length === 5 && index === 0) {
       const digits = text.split("");
       setCode(digits);
-      inputs.current[5]?.focus();
+      inputs.current[4]?.focus();
       return;
     }
 
-    const value = text.slice(-1); // only last char for manual typing
+    const value = text.slice(-1);
     const next = [...code];
     next[index] = value;
     setCode(next);
 
-    if (value && index < 5) {
+    if (value && index < 4) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -119,10 +117,7 @@ export default function VerifyPage() {
       const res = await fetch(`${getBaseUrl()}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          countryCode: countryCode ?? "+1",
-        }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
@@ -130,7 +125,7 @@ export default function VerifyPage() {
       if (!res.ok) {
         setError(data.error || "Failed to resend code.");
       } else {
-        setCode(["", "", "", "", "", ""]);
+        setCode(["", "", "", "", ""]);
         setCountdown(10);
         inputs.current[0]?.focus();
       }
@@ -143,7 +138,7 @@ export default function VerifyPage() {
 
   const handleVerify = async () => {
     const otp = code.join("");
-    if (otp.length < 6) return;
+    if (otp.length < 5) return;
 
     setLoading(true);
     setError("");
@@ -152,11 +147,7 @@ export default function VerifyPage() {
       const res = await fetch(`${getBaseUrl()}/verify/check-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          countryCode: countryCode ?? "+1",
-          otp,
-        }),
+        body: JSON.stringify({ email, otp }),
       });
 
       const data = await res.json();
@@ -183,7 +174,6 @@ export default function VerifyPage() {
   };
 
   return (
-    // ✅ Wrap entire screen so tapping anywhere dismisses keyboard
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.root}>
         <View style={[styles.decoWrap, { pointerEvents: "none" }]}>
@@ -241,9 +231,9 @@ export default function VerifyPage() {
         </View>
 
         <View style={styles.verifyMain}>
-          <Text style={styles.verifyTitle}>Verify your{"\n"}number</Text>
+          <Text style={styles.verifyTitle}>Verify your{"\n"}email</Text>
           <Text style={styles.verifySubtitle}>
-            Enter the OTP sent to {maskedPhone}.
+            Enter the code sent to {maskedEmail}.
           </Text>
 
           <View style={styles.otpRow}>
@@ -252,7 +242,6 @@ export default function VerifyPage() {
                 <TextInput
                   ref={(ref) => { inputs.current[index] = ref; }}
                   value={digit}
-                  // ✅ textContentType="oneTimeCode" enables iOS autofill suggestion bar
                   textContentType="oneTimeCode"
                   autoComplete="one-time-code"
                   onChangeText={(text) => handleOtpChange(text, index)}
@@ -262,7 +251,7 @@ export default function VerifyPage() {
                     }
                   }}
                   keyboardType="number-pad"
-                  maxLength={index === 0 ? 6 : 1} // ✅ first input accepts full paste
+                  maxLength={index === 0 ? 5 : 1}
                   style={styles.otpInput}
                   textAlign="center"
                 />

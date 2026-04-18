@@ -20,7 +20,7 @@ const PfpImg = require('../../../components/myprofile/pfp.png');
 const getBaseUrl = () =>
   Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://172.19.8.233:3000'; 
+    : 'http://172.19.0.229:3000'; 
 
 
 export default function EditProfilePage() {

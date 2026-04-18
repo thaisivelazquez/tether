@@ -1,6 +1,6 @@
 import { Href, useRouter } from 'expo-router';
 import React from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AddEventImg = require('./addevent.png');
@@ -18,9 +18,15 @@ interface NavbarProps {
   activeTab: NavTabId;
   setActiveTab: (id: NavTabId) => void;
   onAddPress: () => void;
+  notificationCount?: number;
 }
 
-export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => {
+export const Navbar = ({
+  activeTab,
+  setActiveTab,
+  onAddPress,
+  notificationCount = 0,
+}: NavbarProps) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -54,6 +60,9 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
       router.push(route);
     }
   };
+
+  const badgeText =
+    notificationCount > 99 ? '99+' : String(notificationCount);
 
   return (
     <View
@@ -119,11 +128,43 @@ export const Navbar = ({ activeTab, setActiveTab, onAddPress }: NavbarProps) => 
         </Pressable>
 
         <Pressable onPress={() => handleTabPress('bell')} style={{ padding: 6 }}>
-          <Image
-            source={activeTab === 'bell' ? BellUnselectedImg : BellUnselectedImg}
-            style={{ width: 28, height: 28 }}
-            resizeMode="contain"
-          />
+          <View style={{ position: 'relative', width: 28, height: 28 }}>
+            <Image
+              source={BellUnselectedImg}
+              style={{ width: 28, height: 28 }}
+              resizeMode="contain"
+            />
+
+            {notificationCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -10,
+                  minWidth: 18,
+                  height: 18,
+                  paddingHorizontal: 4,
+                  borderRadius: 999,
+                  backgroundColor: '#ff4d4f',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1.5,
+                  borderColor: '#ffffff',
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#fff',
+                    fontSize: 10,
+                    fontWeight: '700',
+                    lineHeight: 12,
+                  }}
+                >
+                  {badgeText}
+                </Text>
+              </View>
+            )}
+          </View>
         </Pressable>
 
         <Pressable onPress={() => handleTabPress('profile')} style={{ padding: 6 }}>
