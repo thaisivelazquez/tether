@@ -60,7 +60,7 @@
 // module.exports = router;
 const router = require("express").Router();
 const nodemailer = require("nodemailer");
-
+const otpStore = {};
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -77,7 +77,7 @@ router.post("/send-otp", async (req, res) => {
   if (!email || !phone) {
     return res.status(400).json({ error: "Email and phone number are required." });
   }
-  const otpStore = {};
+
   const code = Math.floor(10000 + Math.random() * 90000).toString();
 
   otpStore[email] = {
