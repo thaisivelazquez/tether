@@ -59,16 +59,17 @@
 
 // module.exports = router;
 const router = require("express").Router();
+const { Resend } = require('resend');
 const nodemailer = require("nodemailer");
 const otpStore = {};
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASS,
-  },
-});
-
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.GMAIL_USER,
+//     pass: process.env.GMAIL_APP_PASS,
+//   },
+// });
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 router.post("/send-otp", async (req, res) => {
   const email = req.body?.email?.trim().toLowerCase();
@@ -96,7 +97,18 @@ router.post("/send-otp", async (req, res) => {
     //   subject: "Your Tether verification code",
     //   html: `${code}`,
     // });
-    console.log("SKIPPING EMAIL FOR TESTING");
+    const { data, error } = await resend.emails.send({
+      from: 'Tether <auth@tethercircle.me>', 
+      to: email,
+      subject: 'Your Tether verification code',
+      html: `<strong>Your code is: ${code}</strong>`,
+    });
+
+    if (error) {
+      console.error("Resend Error:", error);
+      return res.status(500).json({ error: "Failed to send email via Resend." });
+    }
+
     return res.json({ success: true });
 
     // return res.json({ success: true });
