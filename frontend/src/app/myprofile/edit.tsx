@@ -17,10 +17,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PfpImg = require('../../../components/myprofile/pfp.png');
 
-const getBaseUrl = () =>
-  Platform.OS === 'web'
-    ? 'http://localhost:3000'
-    : 'http://172.19.0.202:3000'; 
+const getBaseUrl = () => {
+  // Check if we are in production mode (Publish/Build)
+  if (!__DEV__) {
+    return 'https://tether-production-c60a.up.railway.app';
+  }
+
+  // Otherwise, use local settings for your current dev work
+  return Platform.OS === 'web' 
+    ? 'http://localhost:3000' 
+    : 'http://172.19.1.168:3000'; // Your current local IP
+};
 
 
 export default function EditProfilePage() {

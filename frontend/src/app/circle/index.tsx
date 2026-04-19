@@ -53,10 +53,17 @@ const AVATAR_COLORS = [
   '#f9f0c5',
 ];
 
-const getBaseUrl = () =>
-  Platform.OS === 'web'
-    ? 'http://localhost:3000'
-    : 'http://172.19.0.229:3000';
+const getBaseUrl = () => {
+  // Check if we are in production mode (Publish/Build)
+  if (!__DEV__) {
+    return 'https://tether-production-c60a.up.railway.app';
+  }
+
+  // Otherwise, use local settings for your current dev work
+  return Platform.OS === 'web' 
+    ? 'http://localhost:3000' 
+    : 'http://172.19.1.168:3000'; // Your current local IP
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
