@@ -62,22 +62,13 @@ const router = require("express").Router();
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // Use STARTTLS
+  service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASS,
   },
-  // This is the secret sauce for Railway/Cloud errors
-  tls: {
-    dnsV4: true,
-    rejectUnauthorized: false,
-    minVersion: 'TLSv1.2'
-  }
 });
 
-const otpStore = {};
 
 router.post("/send-otp", async (req, res) => {
   const email = req.body?.email?.trim().toLowerCase();
@@ -99,12 +90,14 @@ router.post("/send-otp", async (req, res) => {
   console.log("OTP STORE:", otpStore[email]);
 
   try {
-    await transporter.sendMail({
-      from: `"Tether" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: "Your Tether verification code",
-      html: `${code}`,
-    });
+    // await transporter.sendMail({
+    //   from: `"Tether" <${process.env.GMAIL_USER}>`,
+    //   to: email,
+    //   subject: "Your Tether verification code",
+    //   html: `${code}`,
+    // });
+    console.log("SKIPPING EMAIL FOR TESTING");
+    return res.json({ success: true });
 
     return res.json({ success: true });
   } catch (err) {
