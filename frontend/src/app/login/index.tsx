@@ -20,7 +20,7 @@ import { moderateScale, scale, styles } from "../../../components/login/loginsty
 const getBaseUrl = () =>
   Platform.OS === "web"
     ? "http://localhost:3000"
-    : "http://172.19.0.229:3000";
+    : "http://172.19.0.202:3000";
 
 const ACTIVITIES = [
   "studying at butler library till nine",

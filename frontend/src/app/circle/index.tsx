@@ -34,7 +34,7 @@ const ORBIT_RADIUS = ORBIT_SIZE / 2;
 const INNER_RING_RADIUS = ORBIT_SIZE * 0.28;
 const OUTER_RING_RADIUS = ORBIT_SIZE * 0.5;
 const AVATAR_SIZE = 40;
-
+const CIRCLE_CACHE_KEY = 'circle_cache';
 const RING_STROKE_WIDTH = 1.5;
 const SAFE_GAP = 14;
 const INNER_BOUNDARY_GAP = 12;
@@ -824,99 +824,128 @@ export default function CirclePage() {
     AsyncStorage.getItem('user_id').then(setCurrentUserId);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+useEffect(() => {
+  let cancelled = false;
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+  async function load() {
+    try {
+      setError(null);
 
-        const members = await fetchCircle();
-        if (cancelled) return;
-
-        const initialNodes: FriendNode[] = members.map((m, i) => {
-          const ring: Ring = m.circle_type;
-          const radius =
-            ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72;
-          const angle = (i / Math.max(members.length, 1)) * Math.PI * 2;
-          const { x, y } = polarToXY(angle, radius);
-
-          const user: User = {
-            id: m.member_user_id,
-            name: `${m.first_name} ${m.last_name}`,
-            ringLevel: ring === 'inner' ? 'close-friends' : 'friends',
-            avatar: '🙂',
-            handle: `@${m.first_name.toLowerCase()}`,
-            location: m.location ?? '',
-            status: m.bio ?? '',
-          };
-
-          prevRingRef.current[m.member_user_id] = ring;
-
-          return {
-            user,
-            ring,
-            color: AVATAR_COLORS[i % AVATAR_COLORS.length],
-            x,
-            y,
-          };
-        });
-
-        setNodes(initialNodes);
-      } catch (err) {
-        console.error('Circle load error:', err);
-        if (!cancelled) setError('Could not load your circle. Pull to retry.');
-      } finally {
-        if (!cancelled) setLoading(false);
+      // Load from cache first for instant display
+      const cached = await AsyncStorage.getItem(CIRCLE_CACHE_KEY);
+      if (cached && !cancelled) {
+        setNodes(JSON.parse(cached));
+        setLoading(false);
       }
+
+      // Then fetch fresh data in background
+      const members = await fetchCircle();
+      if (cancelled) return;
+
+const freshNodes: FriendNode[] = members.map((m, i) => {
+  const ring: Ring = m.circle_type;
+
+  // Use cached position if available, otherwise calculate default
+  const cachedNode = cached
+    ? (JSON.parse(cached) as FriendNode[]).find(
+        (n) => n.user.id === m.member_user_id
+      )
+    : null;
+
+  const x = cachedNode?.x ?? polarToXY(
+    (i / Math.max(members.length, 1)) * Math.PI * 2,
+    ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72
+  ).x;
+
+  const y = cachedNode?.y ?? polarToXY(
+    (i / Math.max(members.length, 1)) * Math.PI * 2,
+    ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72
+  ).y;
+
+  const user: User = {
+    id: m.member_user_id,
+    name: `${m.first_name} ${m.last_name}`,
+    ringLevel: ring === 'inner' ? 'close-friends' : 'friends',
+    avatar: '🙂',
+    handle: `@${m.first_name.toLowerCase()}`,
+    location: m.location ?? '',
+    status: m.bio ?? '',
+  };
+
+  prevRingRef.current[m.member_user_id] = ring;
+
+  return {
+    user,
+    ring,
+    color: cachedNode?.color ?? AVATAR_COLORS[i % AVATAR_COLORS.length],
+    x,
+    y,
+  };
+});
+
+      if (!cancelled) {
+        setNodes(freshNodes);
+        await AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(freshNodes));
+      }
+    } catch (err) {
+      console.error('Circle load error:', err);
+      if (!cancelled) setError('Could not load your circle. Pull to retry.');
+    } finally {
+      if (!cancelled) setLoading(false);
     }
+  }
 
-    load();
+  load();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  return () => { cancelled = true; };
+}, []);
 
-  const handleRemove = async (id: string) => {
-    setNodes((prev) => prev.filter((n) => n.user.id !== id));
-    setSelectedId(null);
-    delete prevRingRef.current[id];
+const handleRemove = async (id: string) => {
+  setNodes((prev) => {
+    const updated = prev.filter((n) => n.user.id !== id);
+    AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(updated));
+    return updated;
+  });
+  setSelectedId(null);
+  delete prevRingRef.current[id];
+
+  try {
+    await removeFriendFromCircle(id);
+  } catch {
+    console.error('Failed to remove friend from circle in DB');
+  }
+};
+const handleMove = async (id: string, x: number, y: number) => {
+  const d = Math.sqrt(x * x + y * y);
+  // Use the midpoint between inner and outer ring radii as the boundary
+  const ringBoundary = (INNER_RING_RADIUS + OUTER_RING_RADIUS) / 2;
+  const newRing: Ring = d <= ringBoundary ? 'inner' : 'outer';
+  const oldRing = prevRingRef.current[id];
+
+  setNodes((prev) => {
+    const updated = prev.map((n) => (n.user.id !== id ? n : { ...n, x, y, ring: newRing }));
+    AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(updated));
+    return updated;
+  });
+
+  if (newRing !== oldRing) {
+    prevRingRef.current[id] = newRing;
 
     try {
-      await removeFriendFromCircle(id);
+      await updateCircleRing(id, newRing);
     } catch {
-      console.error('Failed to remove friend from circle in DB');
+      console.error('Failed to update ring in DB — rolling back');
+
+      setNodes((prev) => {
+        const rolled = prev.map((n) => (n.user.id !== id ? n : { ...n, ring: oldRing }));
+        AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(rolled));
+        return rolled;
+      });
+
+      prevRingRef.current[id] = oldRing;
     }
-  };
-
-  const handleMove = async (id: string, x: number, y: number) => {
-    const d = Math.sqrt(x * x + y * y);
-    const newRing: Ring = d <= INNER_SAFE_RADIUS ? 'inner' : 'outer';
-    const oldRing = prevRingRef.current[id];
-
-    setNodes((prev) =>
-      prev.map((n) => (n.user.id !== id ? n : { ...n, x, y, ring: newRing }))
-    );
-
-    if (newRing !== oldRing) {
-      prevRingRef.current[id] = newRing;
-
-      try {
-        await updateCircleRing(id, newRing);
-      } catch {
-        console.error('Failed to update ring in DB — rolling back');
-
-        setNodes((prev) =>
-          prev.map((n) => (n.user.id !== id ? n : { ...n, ring: oldRing }))
-        );
-
-        prevRingRef.current[id] = oldRing;
-      }
-    }
-  };
-
+  }
+};
   const handleFromContacts = async () => {
     const { status } = await Contacts.requestPermissionsAsync();
 
