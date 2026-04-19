@@ -71,6 +71,7 @@ const transporter = nodemailer.createTransport({
   },
   // This is the secret sauce for Railway/Cloud errors
   tls: {
+    dnsV4: true,
     rejectUnauthorized: false,
     minVersion: 'TLSv1.2'
   }
