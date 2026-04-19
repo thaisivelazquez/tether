@@ -62,11 +62,18 @@ const router = require("express").Router();
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // Use STARTTLS
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASS,
   },
+  // This is the secret sauce for Railway/Cloud errors
+  tls: {
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2'
+  }
 });
 
 const otpStore = {};
