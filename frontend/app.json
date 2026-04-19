@@ -12,7 +12,6 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
-
       },
       "predictiveBackGestureEnabled": false
     },
@@ -33,6 +32,18 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c9c8b4cf-b119-4806-b14d-2d318bec003d"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c9c8b4cf-b119-4806-b14d-2d318bec003d"
+    }
   }
 }
