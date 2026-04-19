@@ -77,7 +77,7 @@ router.post("/send-otp", async (req, res) => {
   if (!email || !phone) {
     return res.status(400).json({ error: "Email and phone number are required." });
   }
-
+  const otpStore = {};
   const code = Math.floor(10000 + Math.random() * 90000).toString();
 
   otpStore[email] = {
@@ -99,7 +99,7 @@ router.post("/send-otp", async (req, res) => {
     console.log("SKIPPING EMAIL FOR TESTING");
     return res.json({ success: true });
 
-    return res.json({ success: true });
+    // return res.json({ success: true });
   } catch (err) {
     console.error("Nodemailer error:", err.message);
     return res.status(500).json({ error: "Failed to send code." });
