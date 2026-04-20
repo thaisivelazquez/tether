@@ -403,8 +403,7 @@ function SidequestDetailModal({
     if (!sidequest || !currentUserId) { Alert.alert('Error', 'User not loaded. Try again.'); return; }
     setJoining(true);
     try {
-      const res = await fetch(
-        `${getBaseUrl()}/events/${sidequest.id}/attend`,
+      const res = await fetch(`${getBaseUrl()}/events/${sidequest.id}/join`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
