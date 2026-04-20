@@ -98,7 +98,7 @@ router.post("/send-otp", async (req, res) => {
     //   html: `${code}`,
     // });
 
-    if (process.env.SEND_EMAIL_FLAG)  {
+    if (process.env.SEND_EMAIL_FLAG == "true")  {
     const { data, error } = await resend.emails.send({
       from: 'Tether <auth@tethercircle.me>', 
       to: email,
