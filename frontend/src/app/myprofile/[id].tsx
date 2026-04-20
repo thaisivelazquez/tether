@@ -13,7 +13,7 @@ import {
 
 const getBaseUrl = () => {
   if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
-  return Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.19.1.168:3000';
+  return Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.19.10.138:3000';
 };
 
 type User = {
@@ -54,10 +54,9 @@ export default function SharedProfilePage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
 
-    fetch(`${getBaseUrl()}/sidequests?user_id=${id}`)
-      .then((r) => r.json())
-      .then((data) => { if (data.sidequests) setSidequests(data.sidequests); })
-      .catch(() => {});
+fetch(`${getBaseUrl()}/events/my-sidequests?user_id=${id}`)
+  .then((r) => r.json())
+  .then((data) => { if (Array.isArray(data)) setSidequests(data); })
   }, [id]);
 
   const formatBirthday = (dateString: string) => {

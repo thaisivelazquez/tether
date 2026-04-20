@@ -26,7 +26,7 @@ const getBaseUrl = () => {
   // Otherwise, use local settings for your current dev work
   return Platform.OS === 'web' 
     ? 'http://localhost:3000' 
-    : 'http://172.19.1.168:3000'; // Your current local IP
+    : 'http://172.19.10.138:3000'; // Your current local IP
 };
 
 

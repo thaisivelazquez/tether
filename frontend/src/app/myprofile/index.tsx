@@ -27,7 +27,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as Clipboard from 'expo-clipboard';
 
-
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
 
@@ -38,17 +37,11 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
-// ✅ Fixed getBaseUrl
 const getBaseUrl = () => {
-  // Check if we are in production mode (Publish/Build)
-  if (!__DEV__) {
-    return 'https://tether-production-c60a.up.railway.app';
-  }
-
-  // Otherwise, use local settings for your current dev work
-  return Platform.OS === 'web' 
-    ? 'http://localhost:3000' 
-    : 'http://172.19.1.168:3000'; // Your current local IP
+  if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
+  return Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.10.138:3000';
 };
 
 type Sidequest = {
@@ -57,7 +50,7 @@ type Sidequest = {
   location: string;
   maxAttendees: number;
   attendees: any[];
-  createdAt: string;
+  startTime: string;
 };
 
 export default function ProfilePage() {
@@ -75,13 +68,45 @@ export default function ProfilePage() {
   const [birthday, setBirthday] = useState('');
   const [bio, setBio] = useState('');
 
+const fetchSidequests = useCallback(async () => {
+  try {
+    const id = await AsyncStorage.getItem('user_id');
+    console.log('>>> [1] user_id from storage:', id);
+
+    if (!id) {
+      console.log('>>> [1] STOPPING - no user_id in AsyncStorage');
+      return;
+    }
+
+    const url = `${getBaseUrl()}/events?user_id=${id}`;
+    console.log('>>> [2] fetching:', url);
+
+    const res = await fetch(url);
+    console.log('>>> [3] status:', res.status);
+
+    const text = await res.text();
+    console.log('>>> [4] raw:', text.slice(0, 300)); // first 300 chars
+
+    const data = JSON.parse(text);
+    console.log('>>> [5] is array:', Array.isArray(data), 'length:', data.length);
+
+    if (Array.isArray(data)) {
+      const mine = data.filter((sq: any) => sq.postedBy?.id === id);
+      console.log('>>> [6] mine count:', mine.length);
+      setSidequests(mine);
+    }
+  } catch (err) {
+    console.error('>>> [ERROR] fetchSidequests threw:', err);
+  }
+}, []);
+
   useFocusEffect(
     useCallback(() => {
       const loadUser = async () => {
         try {
           const id = await AsyncStorage.getItem('user_id');
           if (!id) return;
-          // ✅ Fixed URL
+
           const res = await fetch(`${getBaseUrl()}/users/${id}`);
           if (res.ok) {
             const data = await res.json();
@@ -93,76 +118,74 @@ export default function ProfilePage() {
             setBio(data.user.bio || '');
           }
         } catch (err) {
-          console.error('Load error:', err);
+          console.error('[loadUser] Error:', err);
         }
       };
+
       loadUser();
-    }, [])
+      fetchSidequests();
+    }, [fetchSidequests])
   );
 
   const formatBirthday = (dateString: string | null) => {
     if (!dateString) return 'Add birthday';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-    });
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   };
 
-  const data = useMemo(() => {
+  const sortedSidequests = useMemo(() => {
     return [...sidequests].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
   }, [sidequests]);
+
   const handleLogout = async () => {
-  try {
-    await AsyncStorage.multiRemove(['user_id', 'token']);
-    router.replace('/login'); // change this if your login route is different
-  } catch (error) {
-    console.error('Logout error:', error);
-    Alert.alert('Error', 'Could not log out. Please try again.');
-  }
-};
+    try {
+      await AsyncStorage.multiRemove(['user_id', 'token']);
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Could not log out. Please try again.');
+    }
+  };
+
+  const handleSheetClose = useCallback(() => {
+    setSheetOpen(false);
+    fetchSidequests();
+  }, [fetchSidequests]);
 
   return (
-    
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
-        
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 140 }}
         >
           {/* Top Bar */}
-          
           <View style={styles.topBar}>
-  <Pressable
-    onPress={() => router.push('/myprofile/edit')}
-    style={styles.editIconWrap}
-  >
-    <Image
-      source={EditButtonImg}
-      style={{ width: 22, height: 22 }}
-      resizeMode="contain"
-    />
-  </Pressable>
+            <Pressable
+              onPress={() => router.push('/myprofile/edit')}
+              style={styles.editIconWrap}
+            >
+              <Image
+                source={EditButtonImg}
+                style={{ width: 22, height: 22 }}
+                resizeMode="contain"
+              />
+            </Pressable>
 
-  <Pressable
-    
-    onPress={() =>
-      Alert.alert('Log out', 'Are you sure you want to log out?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log out', style: 'destructive', onPress: handleLogout },
-      ])
-    }
-  >
-    <Text>LOG OUT</Text>
-  </Pressable>
-</View>
+            <Pressable
+              onPress={() =>
+                Alert.alert('Log out', 'Are you sure you want to log out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Log out', style: 'destructive', onPress: handleLogout },
+                ])
+              }
+            >
+              <Text>LOG OUT</Text>
+            </Pressable>
+          </View>
 
           {/* Profile */}
           <View style={styles.hero}>
@@ -176,64 +199,62 @@ export default function ProfilePage() {
               {firstName} {lastName}
             </Text>
 
-            <Text style={styles.infoText}>
-              {bio}
-            </Text>
+            {!!bio && <Text style={styles.infoText}>{bio}</Text>}
 
             <View style={styles.infoRow}>
               <Text style={styles.infoText}>📍 {location || 'Add location'}</Text>
-              <Text style={styles.infoText}>
-                🎂 {formatBirthday(birthday)}
-              </Text>
+              <Text style={styles.infoText}>🎂 {formatBirthday(birthday)}</Text>
             </View>
 
-           <Pressable
-  style={styles.shareBtn}
-  onPress={async () => {
-    const id = await AsyncStorage.getItem('user_id');
-    const link = `exp://172.19.8.233:8081/--/profile/${id}`;
-
-    try {
-      await Share.share({
-        message: `Check out my Tether profile! ${link}`,
-      });
-    } catch (err) {
-      await Clipboard.setStringAsync(link);
-      Alert.alert('Copied!', 'Profile link copied to clipboard.');
-    }
-  }}
->
-  
-  <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
-</Pressable>
+            <Pressable
+              style={styles.shareBtn}
+              onPress={async () => {
+                const id = await AsyncStorage.getItem('user_id');
+                const link = `exp://172.19.8.233:8081/--/profile/${id}`;
+                try {
+                  await Share.share({ message: `Check out my Tether profile! ${link}` });
+                } catch (err) {
+                  await Clipboard.setStringAsync(link);
+                  Alert.alert('Copied!', 'Profile link copied to clipboard.');
+                }
+              }}
+            >
+              <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
+            </Pressable>
           </View>
-          
+
           {/* Sidequests */}
           <View style={styles.section}>
             <Text style={styles.bigSectionTitle}>
-              You are making things happen...
+              You are making {sortedSidequests.length} thing{sortedSidequests.length !== 1 ? 's' : ''} happen...
             </Text>
 
             <View style={styles.cardsWrap}>
-              {data.map((item) => (
-                <View key={item.id} style={styles.card}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardMeta}>
-                    📍 {item.location}
-                  </Text>
-                </View>
-              ))}
+              {sortedSidequests.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  Nothing planned yet. Tap + to add a sidequest!
+                </Text>
+              ) : (
+                sortedSidequests.map((item) => (
+                  <View key={item.id} style={styles.card}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <Text style={styles.cardMeta}>📍 {item.location}</Text>
+                    <Text style={styles.cardMeta}>
+                      👥 {item.attendees?.length ?? 0}
+                      {item.maxAttendees ? ` / ${item.maxAttendees}` : ''}
+                    </Text>
+                  </View>
+                ))
+              )}
             </View>
           </View>
-          
-        </ScrollView>
 
+        </ScrollView>
       </SafeAreaView>
-    
 
       <AddSidequestSheet
         visible={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        onClose={handleSheetClose}
       />
 
       <Navbar
@@ -291,10 +312,7 @@ function AddSidequestSheet({
     <Modal transparent visible={visible} animationType="none">
       <Pressable style={localStyles.backdrop} onPress={onClose} />
       <Animated.View
-        style={[
-          localStyles.sheetContainer,
-          { transform: [{ translateY }] },
-        ]}
+        style={[localStyles.sheetContainer, { transform: [{ translateY }] }]}
       >
         <View {...panResponder.panHandlers} style={localStyles.handleArea}>
           <View style={localStyles.handle} />
@@ -322,61 +340,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ececec',
   },
-  hero: {
-    alignItems: 'center',
-    paddingTop: 18,
-  },
-  name: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 10,
-  },
-  status: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    gap: 18,
-  },
-  infoText: {
-    fontSize: 11.5,
-    color: '#666',
-  },
-  shareBtn: {
-    borderWidth: 1,
-    marginTop: 10,
-    padding: 8,
-  },
-  shareBtnText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  section: {
-    marginTop: 26,
-    paddingHorizontal: 16,
-  },
-  bigSectionTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 14,
-  },
+  hero: { alignItems: 'center', paddingTop: 18 },
+  name: { fontSize: 28, fontWeight: '700', marginTop: 10 },
+  status: { fontSize: 12, color: '#666', marginBottom: 12 },
+  infoRow: { flexDirection: 'row', gap: 18, marginTop: 6 },
+  infoText: { fontSize: 11.5, color: '#666', marginTop: 4, textAlign: 'center' },
+  shareBtn: { borderWidth: 1, marginTop: 10, padding: 8 },
+  shareBtnText: { fontSize: 10, fontWeight: '700' },
+  section: { marginTop: 26, paddingHorizontal: 16 },
+  bigSectionTitle: { fontSize: 26, fontWeight: '800', marginBottom: 14 },
   cardsWrap: { gap: 12 },
   card: {
     backgroundColor: '#f7f4ef',
     borderRadius: 14,
     padding: 14,
+    gap: 4,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  cardTitle: { fontSize: 18, fontWeight: '700' },
+  cardMeta: { fontSize: 12, color: '#666' },
+  emptyText: {
+    fontSize: 13,
+    color: '#bbb',
+    textAlign: 'center',
+    marginTop: 12,
   },
-  cardMeta: {
-    fontSize: 12,
-    color: '#666',
-  },
-  
 });
 
 const localStyles = StyleSheet.create({
@@ -395,16 +382,6 @@ const localStyles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
   },
-  handleArea: {
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#333',
-  }
-
+  handleArea: { height: 40, alignItems: 'center', justifyContent: 'center' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#333' },
 });

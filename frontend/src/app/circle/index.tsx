@@ -28,6 +28,7 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
+const MAX_CIRCLE_FRIENDS = 10;
 
 const ORBIT_SIZE = Math.min(SCREEN_WIDTH - 48, 300);
 const ORBIT_RADIUS = ORBIT_SIZE / 2;
@@ -54,21 +55,18 @@ const AVATAR_COLORS = [
 ];
 
 const getBaseUrl = () => {
-  // Check if we are in production mode (Publish/Build)
   if (!__DEV__) {
     return 'https://tether-production-c60a.up.railway.app';
   }
-
-  // Otherwise, use local settings for your current dev work
-  return Platform.OS === 'web' 
-    ? 'http://localhost:3000' 
-    : 'http://172.19.1.168:3000'; // Your current local IP
+  return Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.10.138:3000';
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Ring = 'inner' | 'outer';
-type CircleModalState = 'none' | 'addFriend' | 'addByPhone' | 'notOnTether';
+type CircleModalState = 'none' | 'addFriend' | 'addByPhone' | 'notOnTether' | 'allFriends';
 
 type User = {
   id: string;
@@ -127,9 +125,7 @@ async function updateCircleRing(memberId: string, newRing: Ring): Promise<void> 
   const userId = await AsyncStorage.getItem('user_id');
 
   const res = await fetch(
-    `${getBaseUrl()}/circle/${memberId}?user_id=${encodeURIComponent(
-      userId ?? ''
-    )}`,
+    `${getBaseUrl()}/circle/${memberId}?user_id=${encodeURIComponent(userId ?? '')}`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -144,9 +140,7 @@ async function removeFriendFromCircle(memberId: string): Promise<void> {
   const userId = await AsyncStorage.getItem('user_id');
 
   const res = await fetch(
-    `${getBaseUrl()}/circle/${memberId}?user_id=${encodeURIComponent(
-      userId ?? ''
-    )}`,
+    `${getBaseUrl()}/circle/${memberId}?user_id=${encodeURIComponent(userId ?? '')}`,
     { method: 'DELETE' }
   );
 
@@ -241,6 +235,91 @@ function AddSidequestSheet({
   );
 }
 
+// ─── AllFriendsModal ──────────────────────────────────────────────────────────
+
+function AllFriendsModal({
+  visible,
+  nodes,
+  onClose,
+  onPressProfile,
+}: {
+  visible: boolean;
+  nodes: FriendNode[];
+  onClose: () => void;
+  onPressProfile: (user: User) => void;
+}) {
+  const innerFriends = nodes.filter((n) => n.ring === 'inner');
+  const outerFriends = nodes.filter((n) => n.ring === 'outer');
+
+  const renderFriendRow = (node: FriendNode) => (
+    <Pressable
+      key={node.user.id}
+      onPress={() => {
+        onClose();
+        onPressProfile(node.user);
+      }}
+      style={af.row}
+    >
+      <View style={[af.avatar, { backgroundColor: node.color }]}>
+        <Text style={af.avatarText}>{node.user.avatar}</Text>
+      </View>
+      <View style={af.info}>
+        <Text style={af.name}>{node.user.name}</Text>
+        <Text style={af.handle}>{node.user.handle}</Text>
+      </View>
+      <Text style={af.chevron}>›</Text>
+    </Pressable>
+  );
+
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={af.overlay}>
+        <View style={af.sheet}>
+          {/* Header */}
+          <View style={af.header}>
+            <Text style={af.headerTitle}>all friends</Text>
+            <Pressable onPress={onClose} style={af.closeBtn}>
+              <Text style={af.closeTxt}>✕</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {/* Inner Ring Section */}
+            {innerFriends.length > 0 && (
+              <View style={af.section}>
+                <View style={af.sectionHeader}>
+                  <View style={af.sectionDot} />
+                  <Text style={af.sectionTitle}>INNER RING</Text>
+                  <Text style={af.sectionCount}>{innerFriends.length}</Text>
+                </View>
+                {innerFriends.map(renderFriendRow)}
+              </View>
+            )}
+
+            {/* Outer Ring Section */}
+            {outerFriends.length > 0 && (
+              <View style={[af.section, { marginTop: innerFriends.length > 0 ? 8 : 0 }]}>
+                <View style={af.sectionHeader}>
+                  <View style={[af.sectionDot, { backgroundColor: '#c5e8f9' }]} />
+                  <Text style={af.sectionTitle}>OUTER RING</Text>
+                  <Text style={af.sectionCount}>{outerFriends.length}</Text>
+                </View>
+                {outerFriends.map(renderFriendRow)}
+              </View>
+            )}
+
+            {nodes.length === 0 && (
+              <Text style={af.empty}>No friends yet. Add some!</Text>
+            )}
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── AddFriendModal ───────────────────────────────────────────────────────────
 
 function AddFriendModal({
@@ -309,7 +388,6 @@ function AddByPhoneModal({
 
   const handleSearch = async () => {
     if (!val.trim()) return;
-
     setSearching(true);
     setFoundUser(null);
     setError('');
@@ -335,8 +413,6 @@ function AddByPhoneModal({
       setSearching(false);
     }
   };
-
-
 
   const handleSendRequest = async () => {
     if (!foundUser) return;
@@ -425,7 +501,6 @@ function AddByPhoneModal({
                 }}
                 keyboardType="phone-pad"
                 autoFocus
-               
               />
 
               {val.length > 0 && (
@@ -459,7 +534,6 @@ function AddByPhoneModal({
                 <Text style={{ fontSize: 12, color: '#555' }}>
                   found! send them a request?
                 </Text>
-
                 <Pressable onPress={handleSendRequest} style={[s.optBtn, { width: '100%', marginTop: 4 }]}>
                   <Text style={s.optTxt}>✉️  SEND REQUEST</Text>
                 </Pressable>
@@ -475,14 +549,7 @@ function AddByPhoneModal({
             )}
 
             {error !== '' && (
-              <Text
-                style={{
-                  marginTop: 12,
-                  fontSize: 13,
-                  color: '#c0392b',
-                  textAlign: 'center',
-                }}
-              >
+              <Text style={{ marginTop: 12, fontSize: 13, color: '#c0392b', textAlign: 'center' }}>
                 {error}
               </Text>
             )}
@@ -490,10 +557,7 @@ function AddByPhoneModal({
             {!foundUser && !sent && (
               <Pressable
                 onPress={handleSearch}
-                style={[
-                  s.optBtn,
-                  { marginTop: 16, width: '100%', opacity: val.trim() ? 1 : 0.4 },
-                ]}
+                style={[s.optBtn, { marginTop: 16, width: '100%', opacity: val.trim() ? 1 : 0.4 }]}
                 disabled={!val.trim() || searching}
               >
                 <Text style={s.optTxt}>
@@ -677,7 +741,9 @@ function DraggableAvatar({
           borderColor: isSelected ? '#ff4444' : '#aaa',
         }}
       >
-        <Text style={{ fontSize: 17 }}>{node.user.avatar}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a1a1a', letterSpacing: 0.5 }}>
+          {node.user.avatar}
+        </Text>
       </Pressable>
 
       {isEditing && isSelected && (
@@ -700,8 +766,6 @@ function DraggableAvatar({
           <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>✕</Text>
         </Pressable>
       )}
-
-     
     </Animated.View>
   );
 }
@@ -726,6 +790,9 @@ function OrbitView({
   onPressProfile: (user: User) => void;
 }) {
   const innerDiameter = INNER_RING_RADIUS * 2;
+
+  // Only render up to MAX_CIRCLE_FRIENDS nodes in the orbit
+  const visibleNodes = nodes.slice(0, MAX_CIRCLE_FRIENDS);
 
   return (
     <Pressable
@@ -771,7 +838,7 @@ function OrbitView({
         OUTER RING
       </Text>
 
-      {nodes.map((node) => (
+      {visibleNodes.map((node) => (
         <DraggableAvatar
           key={node.user.id}
           node={node}
@@ -806,140 +873,137 @@ export default function CirclePage() {
 
   const prevRingRef = useRef<Record<string, Ring>>({});
 
+  // Whether total friends >= MAX_CIRCLE_FRIENDS — shows "See All" button
+  const isAtCapacity = nodes.length >= MAX_CIRCLE_FRIENDS;
+
   useEffect(() => {
     AsyncStorage.getItem('user_id').then(setCurrentUserId);
   }, []);
 
-useEffect(() => {
-  let cancelled = false;
+  useEffect(() => {
+    let cancelled = false;
 
-  async function load() {
-    try {
-      setError(null);
+    async function load() {
+      try {
+        setError(null);
 
-      // Load from cache first for instant display
-      const cached = await AsyncStorage.getItem(CIRCLE_CACHE_KEY);
-      if (cached && !cancelled) {
-        setNodes(JSON.parse(cached));
-        setLoading(false);
+        const cached = await AsyncStorage.getItem(CIRCLE_CACHE_KEY);
+        if (cached && !cancelled) {
+          setNodes(JSON.parse(cached));
+          setLoading(false);
+        }
+
+        const members = await fetchCircle();
+        if (cancelled) return;
+
+        const freshNodes: FriendNode[] = members.map((m, i) => {
+          const ring: Ring = m.circle_type;
+
+          const cachedNode = cached
+            ? (JSON.parse(cached) as FriendNode[]).find(
+                (n) => n.user.id === m.member_user_id
+              )
+            : null;
+
+          const x = cachedNode?.x ?? polarToXY(
+            (i / Math.max(members.length, 1)) * Math.PI * 2,
+            ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72
+          ).x;
+
+          const y = cachedNode?.y ?? polarToXY(
+            (i / Math.max(members.length, 1)) * Math.PI * 2,
+            ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72
+          ).y;
+
+          const user: User = {
+            id: m.member_user_id,
+            name: `${m.first_name} ${m.last_name}`,
+            ringLevel: ring === 'inner' ? 'close-friends' : 'friends',
+            avatar: `${m.first_name.charAt(0)}${m.last_name.charAt(0)}`.toUpperCase(),
+            handle: `@${m.first_name.toLowerCase()}`,
+            location: m.location ?? '',
+            status: m.bio ?? '',
+          };
+
+          prevRingRef.current[m.member_user_id] = ring;
+
+          return {
+            user,
+            ring,
+            color: cachedNode?.color ?? AVATAR_COLORS[i % AVATAR_COLORS.length],
+            x,
+            y,
+          };
+        });
+
+        if (!cancelled) {
+          setNodes(freshNodes);
+          await AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(freshNodes));
+        }
+      } catch (err) {
+        console.error('Circle load error:', err);
+        if (!cancelled) setError('Could not load your circle. Pull to retry.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // Then fetch fresh data in background
-      const members = await fetchCircle();
-      if (cancelled) return;
-
-const freshNodes: FriendNode[] = members.map((m, i) => {
-  const ring: Ring = m.circle_type;
-
-  // Use cached position if available, otherwise calculate default
-  const cachedNode = cached
-    ? (JSON.parse(cached) as FriendNode[]).find(
-        (n) => n.user.id === m.member_user_id
-      )
-    : null;
-
-  const x = cachedNode?.x ?? polarToXY(
-    (i / Math.max(members.length, 1)) * Math.PI * 2,
-    ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72
-  ).x;
-
-  const y = cachedNode?.y ?? polarToXY(
-    (i / Math.max(members.length, 1)) * Math.PI * 2,
-    ring === 'inner' ? INNER_SAFE_RADIUS * 0.72 : OUTER_SAFE_RADIUS * 0.72
-  ).y;
-
-  const user: User = {
-    id: m.member_user_id,
-    name: `${m.first_name} ${m.last_name}`,
-    ringLevel: ring === 'inner' ? 'close-friends' : 'friends',
-    avatar: '🙂',
-    handle: `@${m.first_name.toLowerCase()}`,
-    location: m.location ?? '',
-    status: m.bio ?? '',
-  };
-
-  prevRingRef.current[m.member_user_id] = ring;
-
-  return {
-    user,
-    ring,
-    color: cachedNode?.color ?? AVATAR_COLORS[i % AVATAR_COLORS.length],
-    x,
-    y,
-  };
-});
-
-      if (!cancelled) {
-        setNodes(freshNodes);
-        await AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(freshNodes));
-      }
-    } catch (err) {
-      console.error('Circle load error:', err);
-      if (!cancelled) setError('Could not load your circle. Pull to retry.');
-    } finally {
-      if (!cancelled) setLoading(false);
     }
-  }
 
-  load();
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
-  return () => { cancelled = true; };
-}, []);
-
-const handleRemove = async (id: string) => {
-  setNodes((prev) => {
-    const updated = prev.filter((n) => n.user.id !== id);
-    AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(updated));
-    return updated;
-  });
-  setSelectedId(null);
-  delete prevRingRef.current[id];
-
-  try {
-    await removeFriendFromCircle(id);
-  } catch {
-    console.error('Failed to remove friend from circle in DB');
-  }
-};
-const handleMove = async (id: string, x: number, y: number) => {
-  const d = Math.sqrt(x * x + y * y);
-  // Use the midpoint between inner and outer ring radii as the boundary
-  const ringBoundary = (INNER_RING_RADIUS + OUTER_RING_RADIUS) / 2;
-  const newRing: Ring = d <= ringBoundary ? 'inner' : 'outer';
-  const oldRing = prevRingRef.current[id];
-
-  setNodes((prev) => {
-    const updated = prev.map((n) => (n.user.id !== id ? n : { ...n, x, y, ring: newRing }));
-    AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(updated));
-    return updated;
-  });
-
-  if (newRing !== oldRing) {
-    prevRingRef.current[id] = newRing;
+  const handleRemove = async (id: string) => {
+    setNodes((prev) => {
+      const updated = prev.filter((n) => n.user.id !== id);
+      AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    setSelectedId(null);
+    delete prevRingRef.current[id];
 
     try {
-      await updateCircleRing(id, newRing);
+      await removeFriendFromCircle(id);
     } catch {
-      console.error('Failed to update ring in DB — rolling back');
-
-      setNodes((prev) => {
-        const rolled = prev.map((n) => (n.user.id !== id ? n : { ...n, ring: oldRing }));
-        AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(rolled));
-        return rolled;
-      });
-
-      prevRingRef.current[id] = oldRing;
+      console.error('Failed to remove friend from circle in DB');
     }
-  }
-};
+  };
+
+  const handleMove = async (id: string, x: number, y: number) => {
+    const d = Math.sqrt(x * x + y * y);
+    const ringBoundary = (INNER_RING_RADIUS + OUTER_RING_RADIUS) / 2;
+    const newRing: Ring = d <= ringBoundary ? 'inner' : 'outer';
+    const oldRing = prevRingRef.current[id];
+
+    setNodes((prev) => {
+      const updated = prev.map((n) => (n.user.id !== id ? n : { ...n, x, y, ring: newRing }));
+      AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    if (newRing !== oldRing) {
+      prevRingRef.current[id] = newRing;
+
+      try {
+        await updateCircleRing(id, newRing);
+      } catch {
+        console.error('Failed to update ring in DB — rolling back');
+
+        setNodes((prev) => {
+          const rolled = prev.map((n) => (n.user.id !== id ? n : { ...n, ring: oldRing }));
+          AsyncStorage.setItem(CIRCLE_CACHE_KEY, JSON.stringify(rolled));
+          return rolled;
+        });
+
+        prevRingRef.current[id] = oldRing;
+      }
+    }
+  };
+
   const handleFromContacts = async () => {
     const { status } = await Contacts.requestPermissionsAsync();
 
     if (status !== 'granted') {
-      Alert.alert(
-        'Permission Denied',
-        'Please allow contacts access in your phone settings.'
-      );
+      Alert.alert('Permission Denied', 'Please allow contacts access in your phone settings.');
       return;
     }
 
@@ -962,10 +1026,7 @@ const handleMove = async (id: string, x: number, y: number) => {
     const phone = contact.phoneNumbers?.[0]?.number;
 
     if (!phone) {
-      Alert.alert(
-        'No phone number',
-        `${contact.firstName} doesn't have a phone number saved.`
-      );
+      Alert.alert('No phone number', `${contact.firstName} doesn't have a phone number saved.`);
       return;
     }
 
@@ -973,24 +1034,23 @@ const handleMove = async (id: string, x: number, y: number) => {
     setModal('addByPhone');
   };
 
-const handleOpenProfile = (user: User) => {
-  router.push({
-    pathname: '/myprofile/friendprofile',  
-    params: {
-      userId: user.id,
-      name: user.name,
-      handle: user.handle,
-      location: user.location,
-      status: user.status,
-      avatar: user.avatar,
-      ringLevel: user.ringLevel,
-    },
-  });
-};
+  const handleOpenProfile = (user: User) => {
+    router.push({
+      pathname: '/myprofile/friendprofile',
+      params: {
+        userId: user.id,
+        name: user.name,
+        handle: user.handle,
+        location: user.location,
+        status: user.status,
+        avatar: user.avatar,
+        ringLevel: user.ringLevel,
+      },
+    });
+  };
 
   const handleTabPress = (tab: NavTabId) => {
     setActiveTab(tab);
-
     switch (tab) {
       case 'home':
         router.push('/homepage');
@@ -1011,6 +1071,16 @@ const handleOpenProfile = (user: User) => {
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <SafeAreaView style={{ flex: 1, paddingTop: insets.top }}>
+        {/* Top-right "See All" button — only shown when at capacity */}
+        {isAtCapacity && !isEditing && (
+          <Pressable
+            onPress={() => setModal('allFriends')}
+            style={s.seeAllBtn}
+          >
+            <Text style={s.seeAllTxt}>see all →</Text>
+          </Pressable>
+        )}
+
         <ScrollView
           contentContainerStyle={s.page}
           showsVerticalScrollIndicator={false}
@@ -1027,6 +1097,13 @@ const handleOpenProfile = (user: User) => {
             <Text style={{ color: '#f00', fontSize: 13, marginTop: 40 }}>{error}</Text>
           ) : (
             <>
+              {/* Capacity notice */}
+              {isAtCapacity && !isEditing && (
+                <Text style={s.capacityNote}>
+                  showing {MAX_CIRCLE_FRIENDS} of {nodes.length} friends
+                </Text>
+              )}
+
               <View style={{ marginTop: 24, marginBottom: 20 }}>
                 <OrbitView
                   nodes={nodes}
@@ -1040,26 +1117,13 @@ const handleOpenProfile = (user: User) => {
               </View>
 
               {nodes.length === 0 && !isEditing && (
-                <Text
-                  style={{
-                    color: '#bbb',
-                    fontSize: 13,
-                    textAlign: 'center',
-                  }}
-                >
+                <Text style={{ color: '#bbb', fontSize: 13, textAlign: 'center' }}>
                   Your orbit is empty.{'\n'}Add friends to get started!
                 </Text>
               )}
 
               {isEditing ? (
-                <View
-                  style={{
-                    width: '100%',
-                    maxWidth: 320,
-                    paddingHorizontal: 24,
-                    alignItems: 'center',
-                  }}
-                >
+                <View style={{ width: '100%', maxWidth: 320, paddingHorizontal: 24, alignItems: 'center' }}>
                   <Text style={s.instrText}>TAP AND DRAG TO MOVE PEOPLE WITHIN RINGS</Text>
                   <Text style={s.instrText}>TAP AND HOLD A PERSON FOR MORE OPTIONS</Text>
 
@@ -1091,6 +1155,13 @@ const handleOpenProfile = (user: User) => {
 
       <AddSidequestSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />
 
+      <AllFriendsModal
+        visible={modal === 'allFriends'}
+        nodes={nodes}
+        onClose={() => setModal('none')}
+        onPressProfile={handleOpenProfile}
+      />
+
       <AddFriendModal
         visible={modal === 'addFriend'}
         onClose={() => setModal('none')}
@@ -1114,7 +1185,6 @@ const handleOpenProfile = (user: User) => {
     </View>
   );
 }
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -1256,6 +1326,151 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: '#555',
     letterSpacing: 1,
+  },
+  // See All button (top-right)
+  seeAllBtn: {
+    position: 'absolute',
+    top: 18,
+    right: 20,
+    zIndex: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: '#c4b5fd',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#1a1a1a',
+  },
+  seeAllTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    letterSpacing: 0.5,
+  },
+  // Capacity note under title
+  capacityNote: {
+    fontSize: 11,
+    color: '#aaa',
+    fontWeight: '500',
+    letterSpacing: 0.3,
+    marginTop: 4,
+  },
+});
+
+const af = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#e8e8e8',
+    maxHeight: SCREEN_HEIGHT * 0.82,
+    minHeight: SCREEN_HEIGHT * 0.5,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 20,
+    paddingBottom: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    letterSpacing: -0.3,
+  },
+  closeBtn: {
+    position: 'absolute',
+    right: 20,
+    top: 18,
+    padding: 4,
+  },
+  closeTxt: {
+    fontSize: 15,
+    color: '#555',
+    fontWeight: '600',
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  sectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#c4b5fd',
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#aaa',
+    letterSpacing: 1.5,
+    flex: 1,
+  },
+  sectionCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#bbb',
+    letterSpacing: 0.5,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+    gap: 12,
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    letterSpacing: 0.5,
+  },
+  info: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  handle: {
+    fontSize: 12,
+    color: '#aaa',
+    marginTop: 1,
+  },
+  chevron: {
+    fontSize: 20,
+    color: '#ccc',
+    fontWeight: '300',
+  },
+  empty: {
+    textAlign: 'center',
+    color: '#bbb',
+    fontSize: 14,
+    marginTop: 40,
   },
 });
 

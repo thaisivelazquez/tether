@@ -27,7 +27,7 @@ const getBaseUrl = () => {
   if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
   return Platform.OS === 'web'
     ? 'http://localhost:3000'
-    : 'http://172.19.1.168:3000';
+    : 'http://172.19.10.138:3000';
 };
 
 type FriendRequest = {

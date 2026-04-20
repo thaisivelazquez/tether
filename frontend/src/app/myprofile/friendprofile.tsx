@@ -15,7 +15,7 @@ import {
 
 const getBaseUrl = () => {
   if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
-  return Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.19.1.168:3000';
+  return Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.19.10.138:3000';
 };
 
 const PfpImg = require('../../../components/myprofile/pfp.png');
@@ -50,6 +50,7 @@ export default function FriendProfilePage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [sidequests, setSidequests] = useState<Sidequest[]>([]);
+  const [attendingSidequests, setAttendingSidequests] = useState<Sidequest[]>([]);
   const [mutuals, setMutuals] = useState<Mutual[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -66,9 +67,16 @@ export default function FriendProfilePage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
 
+    // Sidequests this user CREATED
     fetch(`${getBaseUrl()}/sidequests?user_id=${id}`)
       .then((r) => r.json())
       .then((data) => { if (data.sidequests) setSidequests(data.sidequests); })
+      .catch(() => {});
+
+    // Sidequests this user is ATTENDING (but didn't create)
+    fetch(`${getBaseUrl()}/sidequests/attending?user_id=${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (data.sidequests) setAttendingSidequests(data.sidequests); })
       .catch(() => {});
 
     AsyncStorage.getItem('user_id').then((currentUserId) => {
@@ -87,6 +95,9 @@ export default function FriendProfilePage() {
     if (isNaN(date.getTime())) return dateString;
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   };
+
+  // All events this person is involved in
+  const totalCount = sidequests.length + attendingSidequests.length;
 
   if (loading) {
     return (
@@ -136,7 +147,7 @@ export default function FriendProfilePage() {
           {!!user.birthdate && <Text style={s.meta}>🎂 {formatBirthday(user.birthdate)}</Text>}
         </View>
 
-        {/* Mutuals — only shows if there are any */}
+        {/* Mutuals */}
         {mutuals.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Mutuals</Text>
@@ -158,27 +169,58 @@ export default function FriendProfilePage() {
           </View>
         )}
 
-        {/* Sidequests */}
+        {/* Sidequests — Created + Attending */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>
-            {user.first_name} is making {sidequests.length} thing{sidequests.length !== 1 ? 's' : ''} happen...
+            {user.first_name} is making {totalCount} thing{totalCount !== 1 ? 's' : ''} happen...
           </Text>
-          {sidequests.length === 0 ? (
+
+          {totalCount === 0 ? (
             <Text style={s.empty}>Nothing planned yet.</Text>
           ) : (
-            sidequests.map((sq) => (
-              <View key={sq.id} style={s.card}>
-                <Text style={s.cardTitle}>{sq.title}</Text>
-                <View style={s.cardMeta}>
-                  <Text style={s.cardMetaText}>📍 {sq.location}</Text>
-                  {sq.maxAttendees && (
-                    <Text style={s.cardMetaText}>
-                      👥 {sq.attendees?.length ?? 0}/{sq.maxAttendees}
-                    </Text>
+            <>
+              {/* Created by this user */}
+              {sidequests.length > 0 && (
+                <>
+                  {attendingSidequests.length > 0 && (
+                    <Text style={s.subLabel}>HOSTING</Text>
                   )}
-                </View>
-              </View>
-            ))
+                  {sidequests.map((sq) => (
+                    <View key={sq.id} style={s.card}>
+                      <Text style={s.cardTitle}>{sq.title}</Text>
+                      <View style={s.cardMeta}>
+                        <Text style={s.cardMetaText}>📍 {sq.location}</Text>
+                        {sq.maxAttendees && (
+                          <Text style={s.cardMetaText}>
+                            👥 {sq.attendees?.length ?? 0}/{sq.maxAttendees}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              {/* Attending but not hosting */}
+              {attendingSidequests.length > 0 && (
+                <>
+                  <Text style={s.subLabel}>GOING</Text>
+                  {attendingSidequests.map((sq) => (
+                    <View key={sq.id} style={[s.card, s.cardAttending]}>
+                      <Text style={s.cardTitle}>{sq.title}</Text>
+                      <View style={s.cardMeta}>
+                        <Text style={s.cardMetaText}>📍 {sq.location}</Text>
+                        {sq.maxAttendees && (
+                          <Text style={s.cardMetaText}>
+                            👥 {sq.attendees?.length ?? 0}/{sq.maxAttendees}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </>
           )}
         </View>
 
@@ -208,6 +250,15 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 25, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
   sectionSub: { fontSize: 12, color: '#888', marginBottom: 12 },
 
+  subLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: '#aaa',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+
   mutualItem: { alignItems: 'center', marginRight: 16, width: 70 },
   mutualAvatar: { width: 52, height: 52, marginBottom: 4 },
   mutualName: { fontSize: 11, color: '#333', textAlign: 'center' },
@@ -215,6 +266,10 @@ const s = StyleSheet.create({
   card: {
     backgroundColor: '#f9f9f9', borderRadius: 14, padding: 16,
     marginBottom: 10, borderWidth: 1, borderColor: '#eee',
+  },
+  cardAttending: {
+    backgroundColor: '#f0ebff',
+    borderColor: '#d4c5f9',
   },
   cardTitle: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 6 },
   cardMeta: { flexDirection: 'row', gap: 12 },

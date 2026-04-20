@@ -139,7 +139,8 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// GET /users/by-email/:email  ← MUST be before /:id
+// ⚠️ All specific named routes MUST come before /:id
+// GET /users/by-email/:email
 router.get("/by-email/:email", async (req, res) => {
   const email = decodeURIComponent(req.params.email).trim().toLowerCase();
 
@@ -147,6 +148,47 @@ router.get("/by-email/:email", async (req, res) => {
     const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     if (rows.length === 0) return res.status(404).json({ error: "User not found." });
     return res.json({ user: rows[0] });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
+// GET /users/by-phone/:phone  ⚠️ MUST be before /:id
+router.get("/by-phone/:phone", async (req, res) => {
+  const raw = decodeURIComponent(req.params.phone);
+  const digits = raw.replace(/\D/g, "");
+  const normalized = `+${digits.startsWith("1") ? digits : "1" + digits}`;
+
+  try {
+    const { rows } = await pool.query("SELECT * FROM users WHERE phone = $1", [normalized]);
+    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
+    return res.json({ user: rows[0] });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
+// GET /users/mutuals?current_user_id=X&friend_user_id=Y  ⚠️ MUST be before /:id
+router.get("/mutuals", async (req, res) => {
+  const { current_user_id, friend_user_id } = req.query;
+
+  if (!current_user_id || !friend_user_id) {
+    return res.status(400).json({ error: "current_user_id and friend_user_id are required." });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name
+       FROM circle c1
+       JOIN circle c2 ON c1.member_user_id = c2.member_user_id
+       JOIN users u ON u.id = c1.member_user_id
+       WHERE c1.owner_user_id = $1
+         AND c2.owner_user_id = $2`,
+      [current_user_id, friend_user_id]
+    );
+    return res.json({ mutuals: rows });
   } catch (err) {
     console.error("DB error:", err.message);
     return res.status(500).json({ error: "Server error." });
@@ -165,22 +207,6 @@ router.get("/:id", async (req, res) => {
     return res.status(500).json({ error: "Server error." });
   }
 });
-
-// // GET /users/by-phone/:phone  ← MUST be before /:id
-router.get("/by-phone/:phone", async (req, res) => {
-  const raw = decodeURIComponent(req.params.phone);
-  const digits = raw.replace(/\D/g, "");
-  const normalized = `+${digits.startsWith("1") ? digits : "1" + digits}`;
-  try {
-    const { rows } = await pool.query("SELECT * FROM users WHERE phone = $1", [normalized]);
-    if (rows.length === 0) return res.status(404).json({ error: "User not found." });
-    return res.json({ user: rows[0] });
-  } catch (err) {
-    console.error("DB error:", err.message);
-    return res.status(500).json({ error: "Server error." });
-  }
-});
-
 
 // PATCH /users/:id
 router.patch("/:id", async (req, res) => {
@@ -214,31 +240,6 @@ router.patch("/:id", async (req, res) => {
     console.error("DB error:", err.message);
     return res.status(500).json({ error: "Server error." });
   }
-
-  // GET /users/mutuals?current_user_id=X&friend_user_id=Y
-router.get("/mutuals", async (req, res) => {
-  const { current_user_id, friend_user_id } = req.query;
-
-  if (!current_user_id || !friend_user_id) {
-    return res.status(400).json({ error: "current_user_id and friend_user_id are required." });
-  }
-
-  try {
-    const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name
-       FROM circle c1
-       JOIN circle c2 ON c1.member_user_id = c2.member_user_id
-       JOIN users u ON u.id = c1.member_user_id
-       WHERE c1.user_id = $1
-       AND c2.user_id = $2`,
-      [current_user_id, friend_user_id]
-    );
-    return res.json({ mutuals: rows });
-  } catch (err) {
-    console.error("DB error:", err.message);
-    return res.status(500).json({ error: "Server error." });
-  }
-});
 });
 
 module.exports = router;
