@@ -2,16 +2,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BASE_WIDTH = 390;
+const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
 
 const getBaseUrl = () => {
   if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
@@ -34,7 +39,8 @@ type Sidequest = {
   location: string;
   maxAttendees: number;
   attendees: any[];
-  createdAt: string;
+  startTime: string;
+  endTime: string;
 };
 
 type Mutual = {
@@ -42,6 +48,82 @@ type Mutual = {
   first_name: string;
   last_name: string;
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatTime = (d: Date) =>
+  d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+function formatEventTimeRange(startIso: string, endIso: string): string {
+  if (!startIso || !endIso) return '';
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+
+  const isToday = start.toDateString() === now.toDateString();
+  const isTomorrow = start.toDateString() === tomorrow.toDateString();
+  const isEndTomorrow = end.toDateString() === tomorrow.toDateString();
+
+  const startLabel = isToday
+    ? 'Today'
+    : isTomorrow
+    ? 'Tomorrow'
+    : start.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  const endLabel = isEndTomorrow
+    ? 'Tomorrow'
+    : end.toDateString() === now.toDateString()
+    ? formatTime(end)
+    : end.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  return `${startLabel}, ${formatTime(start)} – ${endLabel}`;
+}
+
+// ─── SidequestCard ────────────────────────────────────────────────────────────
+
+function SidequestCard({
+  sidequest,
+  attending = false,
+}: {
+  sidequest: Sidequest;
+  attending?: boolean;
+}) {
+  return (
+    <View style={[cardStyles.card, attending && cardStyles.cardAttending]}>
+      {/* Top row: title + attendee count */}
+      <View style={cardStyles.topRow}>
+        <Text style={cardStyles.title} numberOfLines={2}>
+          {sidequest.title}
+        </Text>
+        <View style={cardStyles.attendeeBadge}>
+          <Text style={cardStyles.attendeeText}>
+            👤 {sidequest.attendees?.length ?? 0}
+            {sidequest.maxAttendees ? `/${sidequest.maxAttendees}` : ''}
+          </Text>
+        </View>
+      </View>
+
+      {/* Bottom row: location + time */}
+      <View style={cardStyles.bottomRow}>
+        <Text style={cardStyles.meta} numberOfLines={1}>
+          📍 {sidequest.location || 'No location set'}
+        </Text>
+        {!!(sidequest.startTime && sidequest.endTime) && (
+          <>
+            <Text style={cardStyles.metaDivider}>·</Text>
+            <Text style={cardStyles.meta} numberOfLines={1}>
+              🕐 {formatEventTimeRange(sidequest.startTime, sidequest.endTime)}
+            </Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── FriendProfilePage ────────────────────────────────────────────────────────
 
 export default function FriendProfilePage() {
   const params = useLocalSearchParams<{ id?: string; userId?: string }>();
@@ -67,13 +149,11 @@ export default function FriendProfilePage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
 
-    // Sidequests this user CREATED
     fetch(`${getBaseUrl()}/sidequests?user_id=${id}`)
       .then((r) => r.json())
       .then((data) => { if (data.sidequests) setSidequests(data.sidequests); })
       .catch(() => {});
 
-    // Sidequests this user is ATTENDING (but didn't create)
     fetch(`${getBaseUrl()}/sidequests/attending?user_id=${id}`)
       .then((r) => r.json())
       .then((data) => { if (data.sidequests) setAttendingSidequests(data.sidequests); })
@@ -86,7 +166,6 @@ export default function FriendProfilePage() {
         .then((data) => { if (data.mutuals) setMutuals(data.mutuals); })
         .catch(() => {});
     });
-
   }, [id]);
 
   const formatBirthday = (dateString: string) => {
@@ -96,7 +175,6 @@ export default function FriendProfilePage() {
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   };
 
-  // All events this person is involved in
   const totalCount = sidequests.length + attendingSidequests.length;
 
   if (loading) {
@@ -128,11 +206,7 @@ export default function FriendProfilePage() {
 
         {/* Avatar */}
         <View style={s.avatarWrap}>
-          <Image
-            source={PfpImg}
-            style={{ width: 136, height: 136 }}
-            resizeMode="contain"
-          />
+          <Image source={PfpImg} style={{ width: rs(136), height: rs(136) }} resizeMode="contain" />
         </View>
 
         {/* Name */}
@@ -157,11 +231,7 @@ export default function FriendProfilePage() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {mutuals.map((m) => (
                 <View key={m.id} style={s.mutualItem}>
-                  <Image
-                    source={PfpImg}
-                    style={s.mutualAvatar}
-                    resizeMode="contain"
-                  />
+                  <Image source={PfpImg} style={s.mutualAvatar} resizeMode="contain" />
                   <Text style={s.mutualName}>{m.first_name} {m.last_name}</Text>
                 </View>
               ))}
@@ -169,7 +239,7 @@ export default function FriendProfilePage() {
           </View>
         )}
 
-        {/* Sidequests — Created + Attending */}
+        {/* Sidequests */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>
             {user.first_name} is making {totalCount} thing{totalCount !== 1 ? 's' : ''} happen...
@@ -179,44 +249,22 @@ export default function FriendProfilePage() {
             <Text style={s.empty}>Nothing planned yet.</Text>
           ) : (
             <>
-              {/* Created by this user */}
               {sidequests.length > 0 && (
                 <>
                   {attendingSidequests.length > 0 && (
                     <Text style={s.subLabel}>HOSTING</Text>
                   )}
                   {sidequests.map((sq) => (
-                    <View key={sq.id} style={s.card}>
-                      <Text style={s.cardTitle}>{sq.title}</Text>
-                      <View style={s.cardMeta}>
-                        <Text style={s.cardMetaText}>📍 {sq.location}</Text>
-                        {sq.maxAttendees && (
-                          <Text style={s.cardMetaText}>
-                            👥 {sq.attendees?.length ?? 0}/{sq.maxAttendees}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
+                    <SidequestCard key={sq.id} sidequest={sq} attending={false} />
                   ))}
                 </>
               )}
 
-              {/* Attending but not hosting */}
               {attendingSidequests.length > 0 && (
                 <>
                   <Text style={s.subLabel}>GOING</Text>
                   {attendingSidequests.map((sq) => (
-                    <View key={sq.id} style={[s.card, s.cardAttending]}>
-                      <Text style={s.cardTitle}>{sq.title}</Text>
-                      <View style={s.cardMeta}>
-                        <Text style={s.cardMetaText}>📍 {sq.location}</Text>
-                        {sq.maxAttendees && (
-                          <Text style={s.cardMetaText}>
-                            👥 {sq.attendees?.length ?? 0}/{sq.maxAttendees}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
+                    <SidequestCard key={sq.id} sidequest={sq} attending={true} />
                   ))}
                 </>
               )}
@@ -229,57 +277,111 @@ export default function FriendProfilePage() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const cardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: rs(14),
+    paddingVertical: rs(14),
+    paddingHorizontal: rs(16),
+    marginBottom: rs(10),
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    gap: rs(10),
+  },
+  cardAttending: {
+    backgroundColor: '#f9f6ff',
+    borderColor: 'rgba(200,177,219,0.35)',
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  title: {
+    fontSize: rs(16),
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+    flexWrap: 'wrap',
+    marginRight: rs(10),
+  },
+  attendeeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  attendeeText: {
+    fontSize: rs(13),
+    fontWeight: '500',
+    color: '#444',
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: rs(6),
+  },
+  meta: {
+    fontSize: rs(12),
+    color: '#555',
+  },
+  metaDivider: {
+    fontSize: rs(12),
+    color: '#bbb',
+  },
+});
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  backRow: { paddingHorizontal: 20, paddingVertical: 12 },
-  backArrow: { fontSize: 15, color: '#555', fontWeight: '500' },
-  scroll: { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 60 },
+  backRow: { paddingHorizontal: rs(20), paddingVertical: rs(12) },
+  backArrow: { fontSize: rs(15), color: '#555', fontWeight: '500' },
+  scroll: { alignItems: 'center', paddingHorizontal: rs(24), paddingBottom: rs(60) },
 
-  avatarWrap: { marginTop: 12, marginBottom: 16 },
+  avatarWrap: { marginTop: rs(12), marginBottom: rs(16) },
 
-  name: { fontSize: 22, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
-  bio: { fontSize: 14, color: '#555', marginBottom: 10, textAlign: 'center' },
+  name: { fontSize: rs(22), fontWeight: '700', color: '#1a1a1a', marginBottom: rs(6) },
+  bio: { fontSize: rs(14), color: '#555', marginBottom: rs(10), textAlign: 'center' },
   metaRow: {
-    flexDirection: 'row', gap: 16, marginBottom: 24,
-    flexWrap: 'wrap', justifyContent: 'center',
+    flexDirection: 'row',
+    gap: rs(16),
+    marginBottom: rs(24),
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  meta: { fontSize: 13, color: '#555' },
+  meta: { fontSize: rs(13), color: '#555' },
 
-  section: { width: '100%', marginBottom: 28 },
-  sectionTitle: { fontSize: 25, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
-  sectionSub: { fontSize: 12, color: '#888', marginBottom: 12 },
+  section: { width: '100%', marginBottom: rs(28) },
+  sectionTitle: { fontSize: rs(25), fontWeight: '700', color: '#1a1a1a', marginBottom: rs(4) },
+  sectionSub: { fontSize: rs(12), color: '#888', marginBottom: rs(12) },
 
   subLabel: {
-    fontSize: 10,
+    fontSize: rs(10),
     fontWeight: '700',
     letterSpacing: 1.5,
     color: '#aaa',
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: rs(12),
+    marginBottom: rs(6),
   },
 
-  mutualItem: { alignItems: 'center', marginRight: 16, width: 70 },
-  mutualAvatar: { width: 52, height: 52, marginBottom: 4 },
-  mutualName: { fontSize: 11, color: '#333', textAlign: 'center' },
+  mutualItem: { alignItems: 'center', marginRight: rs(16), width: rs(70) },
+  mutualAvatar: { width: rs(52), height: rs(52), marginBottom: rs(4) },
+  mutualName: { fontSize: rs(11), color: '#333', textAlign: 'center' },
 
-  card: {
-    backgroundColor: '#f9f9f9', borderRadius: 14, padding: 16,
-    marginBottom: 10, borderWidth: 1, borderColor: '#eee',
-  },
-  cardAttending: {
-    backgroundColor: '#f0ebff',
-    borderColor: '#d4c5f9',
-  },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 6 },
-  cardMeta: { flexDirection: 'row', gap: 12 },
-  cardMetaText: { fontSize: 12, color: '#777' },
-  empty: { fontSize: 13, color: '#bbb', textAlign: 'center', marginTop: 12 },
+  empty: { fontSize: rs(13), color: '#bbb', textAlign: 'center', marginTop: rs(12) },
 
-  errorText: { fontSize: 15, color: '#888', marginBottom: 16 },
+  errorText: { fontSize: rs(15), color: '#888', marginBottom: rs(16) },
   backBtn: {
-    backgroundColor: '#f0ebff', paddingHorizontal: 20,
-    paddingVertical: 10, borderRadius: 20,
+    backgroundColor: '#f0ebff',
+    paddingHorizontal: rs(20),
+    paddingVertical: rs(10),
+    borderRadius: rs(20),
   },
-  backBtnText: { fontSize: 14, fontWeight: '600', color: '#7b4fa6' },
+  backBtnText: { fontSize: rs(14), fontWeight: '600', color: '#7b4fa6' },
 });
