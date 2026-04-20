@@ -642,9 +642,9 @@ export default function HomePage() {
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.slide}>
           <View style={[styles.formBlock, { marginBottom: rs(16) }]}>
-            <Text style={[styles.formHeadline, { fontSize: rs(22) }]}>
-              what's everyone{'\n'}up to this week?
-            </Text>
+           <Text style={[styles.formHeadline, { fontSize: rs(22), fontFamily: undefined }]}>
+  what's everyone{'\n'}up to this week?
+</Text>
 
             <View style={localButtonStyles.row}>
               <View style={localButtonStyles.slot}>
