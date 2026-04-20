@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated,
@@ -24,9 +24,7 @@ const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
 const SWIPE_THRESHOLD = 80;
 
 const getBaseUrl = () => {
-  if (!__DEV__) {
-    return 'https://tether-production-c60a.up.railway.app';
-  }
+  if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
   return Platform.OS === 'web'
     ? 'http://localhost:3000'
     : 'http://172.19.1.168:3000';
@@ -42,7 +40,8 @@ type FriendRequest = {
 };
 
 type EventNotification = {
-  id: string;
+  id: string;                              // notification uuid
+  sidequest_id: string;
   type: 'event';
   event_title: string;
   event_des: string;
@@ -51,11 +50,12 @@ type EventNotification = {
   circle_status: 'everyone' | 'close-friends';
   creator_first_name: string;
   creator_last_name: string;
+  is_read: boolean;
 };
 
 type NotificationItem = FriendRequest | EventNotification;
 
-// ─── Swipeable wrapper ───────────────────────────────────────────────────────
+// ─── Swipeable Card ───────────────────────────────────────────────────────────
 
 function SwipeableCard({
   children,
@@ -134,7 +134,7 @@ function SwipeableCard({
   );
 }
 
-// ─── Cards ───────────────────────────────────────────────────────────────────
+// ─── Friend Request Card ──────────────────────────────────────────────────────
 
 function FriendRequestCard({
   item,
@@ -168,17 +168,11 @@ function FriendRequestCard({
         </View>
 
         <View style={n.btnRow}>
-          <Pressable
-            onPress={onAccept}
-            style={({ pressed }) => [n.acceptBtn, pressed && { opacity: 0.75 }]}
-          >
+          <Pressable onPress={onAccept} style={n.acceptBtn}>
             <Text style={n.acceptTxt}>✓ ACCEPT</Text>
           </Pressable>
 
-          <Pressable
-            onPress={onDecline}
-            style={({ pressed }) => [n.declineBtn, pressed && { opacity: 0.75 }]}
-          >
+          <Pressable onPress={onDecline} style={n.declineBtn}>
             <Text style={n.declineTxt}>✕ DECLINE</Text>
           </Pressable>
         </View>
@@ -186,6 +180,8 @@ function FriendRequestCard({
     </SwipeableCard>
   );
 }
+
+// ─── Event Card ───────────────────────────────────────────────────────────────
 
 function EventCard({
   item,
@@ -197,20 +193,9 @@ function EventCard({
   const isCloseFriends = item.circle_status === 'close-friends';
   const date = new Date(item.time_of_event);
 
-  const formattedDate = date.toLocaleDateString([], {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-
-  const formattedTime = date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
   return (
     <SwipeableCard onDelete={onDelete}>
-      <View style={n.card}>
+      <View style={[n.card, !item.is_read && n.cardUnread]}>
         <View style={n.cardTop}>
           <View style={n.iconCircle}>
             <Text style={{ fontSize: rs(18) }}>📅</Text>
@@ -223,35 +208,43 @@ function EventCard({
             </Text>
           </View>
 
-          <View style={[n.tag, isCloseFriends ? n.tagCF : n.tagAll]}>
+          <View style={n.tag}>
             <Text style={n.tagTxt}>
               {isCloseFriends ? '🔒 INNER' : '🌍 ALL'}
             </Text>
           </View>
         </View>
 
-        {!!item.event_des && <Text style={n.cardDesc}>{item.event_des}</Text>}
+        {!!item.event_des && (
+          <Text style={n.cardDesc}>{item.event_des}</Text>
+        )}
 
-        <View style={n.metaRow}>
-          <Text style={n.meta}>📅 {formattedDate}  ⏰ {formattedTime}</Text>
-        </View>
+        <Text style={n.meta}>📅 {date.toDateString()}</Text>
 
         {!!item.location && (
-          <View style={n.metaRow}>
-            <Text style={n.meta}>📍 {item.location}</Text>
-          </View>
+          <Text style={n.meta}>📍 {item.location}</Text>
         )}
       </View>
     </SwipeableCard>
   );
 }
 
-// ─── Main page ───────────────────────────────────────────────────────────────
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <View style={n.emptyWrap}>
+      <Text style={n.emptyIcon}>🔔</Text>
+      <Text style={n.emptyTitle}>All caught up</Text>
+      <Text style={n.emptySub}>No new notifications</Text>
+    </View>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-
   const [activeTab, setActiveTab] = useState<NavTabId>('bell');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -263,69 +256,37 @@ export default function NotificationsPage() {
     try {
       setLoading(true);
 
-      // Fetch friend requests, all events, and the current user's friend list
-      // (including their close-friends/inner-circle list) in parallel.
-      const [reqRes, evtRes, friendsRes] = await Promise.all([
-        fetch(`${getBaseUrl()}/friends/requests?user_id=${userId}`),
-        fetch(`${getBaseUrl()}/events?user_id=${userId}`),
-        fetch(`${getBaseUrl()}/friends?user_id=${userId}`),  // ← returns friend + inner-circle info
-      ]);
-
-      const reqData  = reqRes.ok     ? await reqRes.json()     : { requests: [] };
-      const evtData  = evtRes.ok     ? await evtRes.json()     : [];
-      const friendsData = friendsRes.ok ? await friendsRes.json() : { friends: [], closeFriends: [] };
-
-      // Build fast-lookup sets from the friends response.
-      // Adjust the field names below to match whatever your API actually returns.
-      //
-      //  friendsData.friends      → array of { id, ... }  (all accepted friends)
-      //  friendsData.closeFriends → array of { id, ... }  (inner-circle friends)
-      const friendIds      = new Set<string>(
-        (friendsData.friends      ?? []).map((f: any) => String(f.id))
+      // Friend requests
+      const reqRes = await fetch(
+        `${getBaseUrl()}/friends/requests?user_id=${userId}`
       );
-      const closeFriendIds = new Set<string>(
-        (friendsData.closeFriends ?? []).map((f: any) => String(f.id))
-      );
+      const reqData = reqRes.ok ? await reqRes.json() : { requests: [] };
 
-      // ── Friend requests ──────────────────────────────────────────────────
-      const friendRequests: FriendRequest[] = (reqData.requests ?? []).map((r: any) => ({
-        ...r,
-        type: 'friend_request' as const,
+      // Event notifications
+      const evtRes = await fetch(
+        `${getBaseUrl()}/notifications?user_id=${userId}`
+      );
+      const evtData = evtRes.ok ? await evtRes.json() : [];
+
+      const friendRequests: FriendRequest[] =
+        reqData.requests?.map((r: any) => ({
+          ...r,
+          type: 'friend_request',
+        })) ?? [];
+
+      const eventNotifs: EventNotification[] = evtData.map((n: any) => ({
+        id: n.id,                                        // ✅ notification uuid
+        sidequest_id: n.sidequest_id,
+        type: 'event',
+        event_title: n.event_title ?? '',
+        event_des: n.event_des ?? '',
+        location: n.location ?? '',
+        time_of_event: n.time_of_event ?? '',
+        circle_status: n.circle_status ?? 'everyone',
+        creator_first_name: n.creator_first_name ?? '',
+        creator_last_name: n.creator_last_name ?? '',
+        is_read: n.is_read ?? false,
       }));
-
-      // ── Event notifications ──────────────────────────────────────────────
-      const eventNotifs: EventNotification[] = (Array.isArray(evtData) ? evtData : [])
-        .filter((e: any) => {
-          const creatorId = String(
-            e.postedBy?.id ?? e.creator_id ?? e.user_id ?? e.posted_by_id
-          );
-
-          // Never show your own events.
-          if (creatorId === String(userId)) return false;
-
-          const circleStatus: string = e.circleStatus ?? e.circle_status ?? 'everyone';
-
-          if (circleStatus === 'close-friends') {
-            // Only show if the current user is in the creator's inner circle.
-            return closeFriendIds.has(creatorId);
-          }
-
-          // 'everyone' → show if the current user is any kind of friend with
-          // the creator (inner-circle friends are a subset of friends, so
-          // checking friendIds is sufficient).
-          return friendIds.has(creatorId);
-        })
-        .map((e: any) => ({
-          id: e.id,
-          type: 'event' as const,
-          event_title: e.title          ?? e.event_title ?? '',
-          event_des:   e.description    ?? e.event_des   ?? '',
-          location:    e.location       ?? '',
-          time_of_event: e.startTime    ?? e.time_of_event ?? '',
-          circle_status: e.circleStatus ?? e.circle_status ?? 'everyone',
-          creator_first_name: e.postedBy?.name?.split(' ')[0] ?? e.creator_first_name ?? '',
-          creator_last_name:  e.postedBy?.name?.split(' ')[1] ?? e.creator_last_name  ?? '',
-        }));
 
       setNotifications([...friendRequests, ...eventNotifs]);
     } catch (err) {
@@ -342,61 +303,54 @@ export default function NotificationsPage() {
   );
 
   const handleAccept = async (item: FriendRequest) => {
-    try {
-      await fetch(`${getBaseUrl()}/friends/requests/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'accepted' }),
-      });
-      setNotifications((prev) =>
-        prev.filter((n) => !(n.type === 'friend_request' && n.id === item.id))
-      );
-    } catch (err) {
-      console.error('Accept failed:', err);
-    }
+    await fetch(`${getBaseUrl()}/friends/requests/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'accepted' }),
+    });
+    setNotifications((prev) =>
+      prev.filter((n) => !(n.type === 'friend_request' && n.id === item.id))
+    );
   };
 
   const handleDecline = async (item: FriendRequest) => {
-    try {
-      await fetch(`${getBaseUrl()}/friends/requests/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'declined' }),
-      });
-      setNotifications((prev) =>
-        prev.filter((n) => !(n.type === 'friend_request' && n.id === item.id))
-      );
-    } catch (err) {
-      console.error('Decline failed:', err);
-    }
+    await fetch(`${getBaseUrl()}/friends/requests/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'declined' }),
+    });
+    setNotifications((prev) =>
+      prev.filter((n) => !(n.type === 'friend_request' && n.id === item.id))
+    );
   };
 
-  const handleDelete = (id: string, type: NotificationItem['type']) => {
-    setNotifications((prev) => prev.filter((item) => !(item.id === id && item.type === type)));
+  // Marks is_deleted = true in DB, then removes from UI
+  const handleDelete = async (id: string, type: NotificationItem['type']) => {
+    if (type === 'event') {
+      await fetch(`${getBaseUrl()}/notifications/${id}/delete`, {
+        method: 'PATCH',
+      }).catch(() => {});
+    }
+    setNotifications((prev) =>
+      prev.filter((n) => !(n.id === id && n.type === type))
+    );
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <SafeAreaView style={{ flex: 1, paddingTop: insets.top }}>
-        <View style={{ paddingHorizontal: rs(20), paddingTop: rs(16), paddingBottom: rs(8) }}>
-          <Text style={n.pageTitle}>notifications</Text>
-          {notifications.length > 0 && (
-            <Text style={n.pageSub}>{notifications.length} new</Text>
-          )}
-        </View>
+        <Text style={n.pageTitle}>Notifications</Text>
 
-        {loading ? (
-          <Text style={n.empty}>Loading...</Text>
-        ) : notifications.length === 0 ? (
-          <Text style={n.empty}>you're all caught up 🎉</Text>
+        {!loading && notifications.length === 0 ? (
+          <EmptyState />
         ) : (
           <FlatList
             data={notifications}
             keyExtractor={(item) => `${item.type}-${item.id}`}
             contentContainerStyle={{
               paddingHorizontal: rs(16),
-              paddingBottom: rs(140),
-              paddingTop: rs(8),
+              paddingTop: rs(12),
+              paddingBottom: rs(120),
             }}
             renderItem={({ item }) => {
               if (item.type === 'friend_request') {
@@ -430,118 +384,118 @@ export default function NotificationsPage() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const n = StyleSheet.create({
   pageTitle: {
-    fontSize: rs(28),
-    fontWeight: '700',
-    color: '#1a1a1a',
-    letterSpacing: -0.5,
-  },
-  pageSub: {
-    fontSize: rs(13),
-    color: '#999',
-    marginTop: rs(2),
-  },
-  empty: {
-    textAlign: 'center',
-    marginTop: rs(60),
-    color: '#aaa',
-    fontSize: rs(14),
+    fontSize: rs(22),
+    fontWeight: '800',
+    color: '#111',
+    paddingHorizontal: rs(16),
+    paddingTop: rs(8),
+    paddingBottom: rs(4),
   },
   card: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f9f9f9',
     borderRadius: rs(16),
-    padding: rs(16),
+    padding: rs(14),
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: '#ebebeb',
+  },
+  cardUnread: {
+    borderColor: '#c8d8ff',
+    backgroundColor: '#f0f4ff',
   },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: rs(12),
+    gap: rs(10),
     marginBottom: rs(8),
   },
   iconCircle: {
-    width: rs(40),
-    height: rs(40),
-    borderRadius: rs(20),
-    backgroundColor: '#2a2a2a',
-    alignItems: 'center',
+    width: rs(38),
+    height: rs(38),
+    borderRadius: rs(19),
+    backgroundColor: '#eee',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   cardTitle: {
     fontSize: rs(14),
     fontWeight: '700',
-    color: '#fff',
+    color: '#111',
   },
   cardSub: {
     fontSize: rs(12),
-    color: '#777',
+    color: '#888',
     marginTop: rs(2),
   },
   cardDesc: {
     fontSize: rs(13),
-    color: '#999',
-    marginBottom: rs(8),
-    lineHeight: rs(18),
-  },
-  tag: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 999,
-    paddingHorizontal: rs(8),
-    paddingVertical: rs(3),
-  },
-  tagCF: {
-    backgroundColor: '#2d1f3d',
-  },
-  tagAll: {
-    backgroundColor: '#1a2d1f',
-  },
-  tagTxt: {
-    fontSize: rs(10),
-    fontWeight: '700',
-    color: '#c8b1db',
-    letterSpacing: 0.5,
-  },
-  metaRow: {
-    marginTop: rs(4),
+    color: '#444',
+    marginBottom: rs(6),
   },
   meta: {
     fontSize: rs(12),
-    color: '#777',
+    color: '#666',
+    marginTop: rs(3),
+  },
+  tag: {
+    backgroundColor: '#111',
+    borderRadius: rs(6),
+    paddingHorizontal: rs(7),
+    paddingVertical: rs(3),
+  },
+  tagTxt: {
+    color: '#fff',
+    fontSize: rs(10),
+    fontWeight: '700',
   },
   btnRow: {
     flexDirection: 'row',
-    gap: rs(10),
-    marginTop: rs(12),
+    gap: rs(8),
+    marginTop: rs(4),
   },
   acceptBtn: {
     flex: 1,
-    backgroundColor: '#c4b5fd',
-    borderRadius: rs(8),
-    paddingVertical: rs(10),
+    backgroundColor: '#111',
+    borderRadius: rs(10),
+    paddingVertical: rs(9),
     alignItems: 'center',
   },
   acceptTxt: {
-    fontSize: rs(11),
+    color: '#fff',
+    fontSize: rs(13),
     fontWeight: '700',
-    letterSpacing: 1,
-    color: '#1a1a1a',
   },
   declineBtn: {
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#444',
-    borderRadius: rs(8),
-    paddingVertical: rs(10),
+    backgroundColor: '#f0f0f0',
+    borderRadius: rs(10),
+    paddingVertical: rs(9),
     alignItems: 'center',
   },
   declineTxt: {
-    fontSize: rs(11),
+    color: '#111',
+    fontSize: rs(13),
     fontWeight: '700',
-    letterSpacing: 1,
-    color: '#777',
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: rs(8),
+  },
+  emptyIcon: {
+    fontSize: rs(48),
+  },
+  emptyTitle: {
+    fontSize: rs(18),
+    fontWeight: '800',
+    color: '#111',
+  },
+  emptySub: {
+    fontSize: rs(14),
+    color: '#888',
   },
 });

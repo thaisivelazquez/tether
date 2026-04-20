@@ -59,6 +59,61 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/notifications", async (req, res) => {
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id is required" });
+  }
+
+  const { rows } = await pool.query(`
+    SELECT
+      n.id,
+      n.type,
+      n.sidequest_id,
+      n.is_read,
+      n.created_at,
+
+      s.event_title,
+      s.event_des,
+      s.location,
+      s.time_of_event,
+      s.circle_status,
+
+      u.first_name AS creator_first_name,
+      u.last_name  AS creator_last_name
+
+    FROM notifications n
+    JOIN sidequests s ON s.id = n.sidequest_id
+    JOIN users u ON u.id = s.user_id
+    WHERE n.user_id = $1
+      AND n.is_deleted = false
+    ORDER BY n.created_at DESC
+  `, [user_id]);
+
+  res.json(rows);
+});
+
+// Mark notification deleted (swipe away)
+router.patch("/notifications/:id/delete", async (req, res) => {
+  const { id } = req.params;
+  await pool.query(
+    `UPDATE notifications SET is_deleted = true WHERE id = $1`,
+    [id]
+  );
+  res.json({ success: true });
+});
+
+// Mark notification read
+router.patch("/notifications/:id/read", async (req, res) => {
+  const { id } = req.params;
+  await pool.query(
+    `UPDATE notifications SET is_read = true WHERE id = $1`,
+    [id]
+  );
+  res.json({ success: true });
+});
+
 // ─── POST /events ─────────────────────────────────────────────────────────────
 router.post("/", async (req, res) => {
   const {
