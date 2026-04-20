@@ -91,29 +91,32 @@ router.post("/send-otp", async (req, res) => {
   console.log("OTP STORE:", otpStore[email]);
 
   try {
-  // Skip email verification entirely
-  if (process.env.SEND_EMAIL_FLAG !== "true") {
-    return res.json({ success: true, skipped: true });
+    // 👉 DEV MODE: skip email, return code directly
+    if (process.env.SKIP_EMAIL_VERIFICATION === "true") {
+      return res.json({
+        success: true,
+        code: code, // 👈 visible in dev
+      });
+    }
+
+    // 👉 PROD MODE: send email
+    const { error } = await resend.emails.send({
+      from: "Tether <onboarding@resend.dev>", // replace with verified domain later
+      to: email,
+      subject: "Your Tether verification code",
+      html: `<strong>Your code is: ${code}</strong>`,
+    });
+
+    if (error) {
+      console.error("Resend Error:", error);
+      return res.status(500).json({ error: "Failed to send email." });
+    }
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error("Full error:", err);
+    return res.status(500).json({ error: "Failed to send code." });
   }
-
-  const { data, error } = await resend.emails.send({
-    from: "Tether <onboarding@resend.dev>",
-    to: email,
-    subject: "Your Tether verification code",
-    html: `<strong>Your code is: ${code}</strong>`,
-  });
-
-  if (error) {
-    console.error("Resend Error:", error);
-    return res.status(500).json({ error: "Failed to send email." });
-  }
-
-  return res.json({ success: true });
-
-} catch (err) {
-  console.error("Full error:", err);
-  return res.status(500).json({ error: "Failed to send code." });
-}
 });
-
 module.exports = { router, otpStore };
