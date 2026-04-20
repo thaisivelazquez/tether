@@ -1,12 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -21,7 +15,7 @@ import {
   Share,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,7 +27,9 @@ import CreateSidequestForm from '../modals/sidequest/create';
 const EditButtonImg = require('../../../components/myprofile/editbutton.png');
 const PfpImg = require('../../../components/myprofile/pfp.png');
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const BASE_WIDTH = 390;
+const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
@@ -44,14 +40,102 @@ const getBaseUrl = () => {
     : 'http://172.19.10.138:3000';
 };
 
+type Attendee = {
+  id: string;
+  name: string;
+  location: string;
+};
+
 type Sidequest = {
   id: string;
   title: string;
+  description: string;
+  circleStatus: 'everyone' | 'close-friends';
+  postedBy: {
+    id: string;
+    name: string;
+    location: string;
+  };
+  attendees: Attendee[];
+  startTime: string;
+  endTime: string;
   location: string;
   maxAttendees: number;
-  attendees: any[];
-  startTime: string;
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatTime = (d: Date) =>
+  d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+function formatEventTimeRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+
+  const isToday = start.toDateString() === now.toDateString();
+  const isTomorrow = start.toDateString() === tomorrow.toDateString();
+  const isEndTomorrow = end.toDateString() === tomorrow.toDateString();
+
+  const startLabel = isToday
+    ? 'Today'
+    : isTomorrow
+    ? 'Tomorrow'
+    : start.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  const endLabel = isEndTomorrow
+    ? 'Tomorrow'
+    : end.toDateString() === now.toDateString()
+    ? formatTime(end)
+    : end.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  return `${startLabel}, ${formatTime(start)} – ${endLabel}`;
+}
+
+// ─── SidequestCard ────────────────────────────────────────────────────────────
+
+function SidequestCard({
+  sidequest,
+  onPress,
+}: {
+  sidequest: Sidequest;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [cardStyles.card, pressed && { opacity: 0.85 }]}
+    >
+      {/* Top row: title + attendee count */}
+      <View style={cardStyles.topRow}>
+        <Text style={cardStyles.title} numberOfLines={2}>
+          {sidequest.title}
+        </Text>
+        <View style={cardStyles.attendeeBadge}>
+          <Text style={cardStyles.attendeeText}>
+            👤 {sidequest.attendees?.length ?? 0}
+            {sidequest.maxAttendees ? `/${sidequest.maxAttendees}` : ''}
+          </Text>
+        </View>
+      </View>
+
+      {/* Bottom row: location + time */}
+      <View style={cardStyles.bottomRow}>
+        <Text style={cardStyles.meta} numberOfLines={1}>
+          📍 {sidequest.location || 'No location set'}
+        </Text>
+        <Text style={cardStyles.metaDivider}>·</Text>
+        <Text style={cardStyles.meta} numberOfLines={1}>
+          🕐 {formatEventTimeRange(sidequest.startTime, sidequest.endTime)}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+// ─── ProfilePage ──────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -63,42 +147,27 @@ export default function ProfilePage() {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [status, setStatus] = useState('');
   const [location, setLocation] = useState('');
   const [birthday, setBirthday] = useState('');
   const [bio, setBio] = useState('');
 
-const fetchSidequests = useCallback(async () => {
-  try {
-    const id = await AsyncStorage.getItem('user_id');
-    console.log('>>> [1] user_id from storage:', id);
+  const fetchSidequests = useCallback(async () => {
+    try {
+      const id = await AsyncStorage.getItem('user_id');
+      if (!id) return;
 
-    if (!id) {
-      console.log('>>> [1] STOPPING - no user_id in AsyncStorage');
-      return;
+      const res = await fetch(`${getBaseUrl()}/events?user_id=${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const mine = data.filter((sq: any) => sq.postedBy?.id === id);
+          setSidequests(mine);
+        }
+      }
+    } catch (err) {
+      console.error('[fetchSidequests] Error:', err);
     }
-
-    const url = `${getBaseUrl()}/events?user_id=${id}`;
-    console.log('>>> [2] fetching:', url);
-
-    const res = await fetch(url);
-    console.log('>>> [3] status:', res.status);
-
-    const text = await res.text();
-    console.log('>>> [4] raw:', text.slice(0, 300)); // first 300 chars
-
-    const data = JSON.parse(text);
-    console.log('>>> [5] is array:', Array.isArray(data), 'length:', data.length);
-
-    if (Array.isArray(data)) {
-      const mine = data.filter((sq: any) => sq.postedBy?.id === id);
-      console.log('>>> [6] mine count:', mine.length);
-      setSidequests(mine);
-    }
-  } catch (err) {
-    console.error('>>> [ERROR] fetchSidequests threw:', err);
-  }
-}, []);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -112,7 +181,6 @@ const fetchSidequests = useCallback(async () => {
             const data = await res.json();
             setFirstName(data.user.first_name || '');
             setLastName(data.user.last_name || '');
-            setStatus(data.user.status || '');
             setLocation(data.user.location || '');
             setBirthday(data.user.birthdate || '');
             setBio(data.user.bio || '');
@@ -157,20 +225,20 @@ const fetchSidequests = useCallback(async () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <SafeAreaView style={[profileStyles.container, { paddingTop: insets.top }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 140 }}
+          contentContainerStyle={{ paddingBottom: rs(140) }}
         >
           {/* Top Bar */}
-          <View style={styles.topBar}>
+          <View style={profileStyles.topBar}>
             <Pressable
               onPress={() => router.push('/myprofile/edit')}
-              style={styles.editIconWrap}
+              style={profileStyles.editIconWrap}
             >
               <Image
                 source={EditButtonImg}
-                style={{ width: 22, height: 22 }}
+                style={{ width: rs(22), height: rs(22) }}
                 resizeMode="contain"
               />
             </Pressable>
@@ -183,79 +251,73 @@ const fetchSidequests = useCallback(async () => {
                 ])
               }
             >
-              <Text>LOG OUT</Text>
+              <Text style={profileStyles.logoutText}>LOG OUT</Text>
             </Pressable>
           </View>
 
-          {/* Profile */}
-          <View style={styles.hero}>
+          {/* Profile Hero */}
+          <View style={profileStyles.hero}>
             <Image
               source={PfpImg}
-              style={{ width: 136, height: 136 }}
+              style={{ width: rs(136), height: rs(136) }}
               resizeMode="contain"
             />
 
-            <Text style={styles.name}>
+            <Text style={profileStyles.name}>
               {firstName} {lastName}
             </Text>
 
-            {!!bio && <Text style={styles.infoText}>{bio}</Text>}
+            {!!bio && <Text style={profileStyles.infoText}>{bio}</Text>}
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoText}>📍 {location || 'Add location'}</Text>
-              <Text style={styles.infoText}>🎂 {formatBirthday(birthday)}</Text>
+            <View style={profileStyles.infoRow}>
+              <Text style={profileStyles.infoText}>📍 {location || 'Add location'}</Text>
+              <Text style={profileStyles.infoText}>🎂 {formatBirthday(birthday)}</Text>
             </View>
 
             <Pressable
-              style={styles.shareBtn}
+              style={profileStyles.shareBtn}
               onPress={async () => {
                 const id = await AsyncStorage.getItem('user_id');
                 const link = `exp://172.19.8.233:8081/--/profile/${id}`;
                 try {
                   await Share.share({ message: `Check out my Tether profile! ${link}` });
-                } catch (err) {
+                } catch {
                   await Clipboard.setStringAsync(link);
                   Alert.alert('Copied!', 'Profile link copied to clipboard.');
                 }
               }}
             >
-              <Text style={styles.shareBtnText}>SHARE PROFILE</Text>
+              <Text style={profileStyles.shareBtnText}>SHARE PROFILE</Text>
             </Pressable>
           </View>
 
           {/* Sidequests */}
-          <View style={styles.section}>
-            <Text style={styles.bigSectionTitle}>
-              You are making {sortedSidequests.length} thing{sortedSidequests.length !== 1 ? 's' : ''} happen...
+          <View style={profileStyles.section}>
+            <Text style={profileStyles.sectionTitle}>
+              You are making {sortedSidequests.length} thing
+              {sortedSidequests.length !== 1 ? 's' : ''} happen...
             </Text>
 
-            <View style={styles.cardsWrap}>
+            <View style={profileStyles.cardsWrap}>
               {sortedSidequests.length === 0 ? (
-                <Text style={styles.emptyText}>
+                <Text style={profileStyles.emptyText}>
                   Nothing planned yet. Tap + to add a sidequest!
                 </Text>
               ) : (
                 sortedSidequests.map((item) => (
-                  <View key={item.id} style={styles.card}>
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardMeta}>📍 {item.location}</Text>
-                    <Text style={styles.cardMeta}>
-                      👥 {item.attendees?.length ?? 0}
-                      {item.maxAttendees ? ` / ${item.maxAttendees}` : ''}
-                    </Text>
-                  </View>
+                  <SidequestCard
+                    key={item.id}
+                    sidequest={item}
+                    onPress={() => {}}
+                  />
                 ))
               )}
             </View>
           </View>
-
         </ScrollView>
       </SafeAreaView>
 
-      <AddSidequestSheet
-        visible={sheetOpen}
-        onClose={handleSheetClose}
-      />
+      <AddSidequestSheet visible={sheetOpen} onClose={handleSheetClose} />
 
       <Navbar
         activeTab={activeTab}
@@ -266,6 +328,8 @@ const fetchSidequests = useCallback(async () => {
   );
 }
 
+// ─── AddSidequestSheet ────────────────────────────────────────────────────────
+
 function AddSidequestSheet({
   visible,
   onClose,
@@ -275,7 +339,7 @@ function AddSidequestSheet({
 }) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
-  useEffect(() => {
+  React.useEffect(() => {
     Animated.spring(translateY, {
       toValue: visible ? 0 : SHEET_HEIGHT,
       useNativeDriver: true,
@@ -287,9 +351,7 @@ function AddSidequestSheet({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
-      onPanResponderMove: (_, { dy }) => {
-        if (dy > 0) translateY.setValue(dy);
-      },
+      onPanResponderMove: (_, { dy }) => { if (dy > 0) translateY.setValue(dy); },
       onPanResponderRelease: (_, { dy, vy }) => {
         if (dy > DISMISS_THRESHOLD || vy > 1.5) {
           Animated.timing(translateY, {
@@ -310,12 +372,12 @@ function AddSidequestSheet({
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Pressable style={localStyles.backdrop} onPress={onClose} />
+      <Pressable style={sheetStyles.backdrop} onPress={onClose} />
       <Animated.View
-        style={[localStyles.sheetContainer, { transform: [{ translateY }] }]}
+        style={[sheetStyles.sheetContainer, { transform: [{ translateY }] }]}
       >
-        <View {...panResponder.panHandlers} style={localStyles.handleArea}>
-          <View style={localStyles.handle} />
+        <View {...panResponder.panHandlers} style={sheetStyles.handleArea}>
+          <View style={sheetStyles.handle} />
         </View>
         <CreateSidequestForm onClose={onClose} />
       </Animated.View>
@@ -323,50 +385,98 @@ function AddSidequestSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  topBar: {
-    paddingHorizontal: 18,
-    paddingTop: 6,
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const cardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: rs(14),
+    paddingVertical: rs(14),
+    paddingHorizontal: rs(16),
+    marginBottom: rs(10),
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    gap: rs(10),
+  },
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  title: {
+    fontSize: rs(16),
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+    flexWrap: 'wrap',
+    marginRight: rs(10),
+  },
+  attendeeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  attendeeText: {
+    fontSize: rs(13),
+    fontWeight: '500',
+    color: '#444',
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: rs(6),
+  },
+  meta: {
+    fontSize: rs(12),
+    color: '#555',
+  },
+  metaDivider: {
+    fontSize: rs(12),
+    color: '#bbb',
+  },
+});
+
+const profileStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  topBar: {
+    paddingHorizontal: rs(18),
+    paddingTop: rs(6),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   editIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: rs(28),
+    height: rs(28),
+    borderRadius: rs(14),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#ececec',
   },
-  hero: { alignItems: 'center', paddingTop: 18 },
-  name: { fontSize: 28, fontWeight: '700', marginTop: 10 },
-  status: { fontSize: 12, color: '#666', marginBottom: 12 },
-  infoRow: { flexDirection: 'row', gap: 18, marginTop: 6 },
-  infoText: { fontSize: 11.5, color: '#666', marginTop: 4, textAlign: 'center' },
-  shareBtn: { borderWidth: 1, marginTop: 10, padding: 8 },
-  shareBtnText: { fontSize: 10, fontWeight: '700' },
-  section: { marginTop: 26, paddingHorizontal: 16 },
-  bigSectionTitle: { fontSize: 26, fontWeight: '800', marginBottom: 14 },
-  cardsWrap: { gap: 12 },
-  card: {
-    backgroundColor: '#f7f4ef',
-    borderRadius: 14,
-    padding: 14,
-    gap: 4,
+  logoutText: {
+    fontSize: rs(11),
+    fontWeight: '700',
+    color: '#333',
   },
-  cardTitle: { fontSize: 18, fontWeight: '700' },
-  cardMeta: { fontSize: 12, color: '#666' },
-  emptyText: {
-    fontSize: 13,
-    color: '#bbb',
-    textAlign: 'center',
-    marginTop: 12,
-  },
+  hero: { alignItems: 'center', paddingTop: rs(18) },
+  name: { fontSize: rs(28), fontWeight: '700', marginTop: rs(10) },
+  infoRow: { flexDirection: 'row', gap: rs(18), marginTop: rs(6) },
+  infoText: { fontSize: rs(11.5), color: '#666', marginTop: rs(4), textAlign: 'center' },
+  shareBtn: { borderWidth: 1, borderColor: '#ddd', marginTop: rs(10), paddingVertical: rs(8), paddingHorizontal: rs(16), borderRadius: rs(6) },
+  shareBtnText: { fontSize: rs(10), fontWeight: '700', color: '#333' },
+  section: { marginTop: rs(26), paddingHorizontal: rs(16) },
+  sectionTitle: { fontSize: rs(26), fontWeight: '800', marginBottom: rs(14) },
+  cardsWrap: { gap: rs(0) },
+  emptyText: { fontSize: rs(13), color: '#bbb', textAlign: 'center', marginTop: rs(12) },
 });
 
-const localStyles = StyleSheet.create({
+const sheetStyles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
