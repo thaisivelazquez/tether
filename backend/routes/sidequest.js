@@ -218,76 +218,76 @@ router.post("/:id/join", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const sidequestResult = await client.query(
-      `
-      SELECT
-        s.*,
-        u.first_name AS poster_first_name,
-        u.last_name AS poster_last_name,
-        u.location AS poster_location
-      FROM sidequests s
-      LEFT JOIN users u ON u.id = s.user_id
-      WHERE s.id = $1
-      FOR UPDATE
-      `,
+    // ✅ Lock ONLY the sidequests row — no JOIN here
+    const lockResult = await client.query(
+      `SELECT id, user_id, max_attendees
+       FROM sidequests
+       WHERE id = $1
+       FOR UPDATE`,
       [id]
     );
 
-    if (sidequestResult.rowCount === 0) {
+    if (lockResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Sidequest not found" });
     }
 
-    const sidequest = sidequestResult.rows[0];
+    const sidequest = lockResult.rows[0];
 
+    // Owner check
     if (String(sidequest.user_id) === String(user_id)) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "You already own this sidequest" });
     }
 
-    const existingAttendee = await client.query(
-      `
-      SELECT 1
-      FROM event_attendees
-      WHERE sidequest_id = $1 AND user_id = $2
-      `,
+    // Already joined check
+    const existing = await client.query(
+      `SELECT 1 FROM event_attendees WHERE sidequest_id = $1 AND user_id = $2`,
       [id, user_id]
     );
 
-    if (existingAttendee.rowCount > 0) {
+    if (existing.rowCount > 0) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "You already joined this sidequest" });
     }
 
-    const attendeeCountResult = await client.query(
-      `
-      SELECT COUNT(*)::int AS count
-      FROM event_attendees
-      WHERE sidequest_id = $1
-      `,
+    // Capacity check
+    const countResult = await client.query(
+      `SELECT COUNT(*)::int AS count FROM event_attendees WHERE sidequest_id = $1`,
       [id]
     );
 
-    const attendeeCount = attendeeCountResult.rows[0].count;
+    const count = countResult.rows[0].count;
     const maxAttendees = sidequest.max_attendees ?? 1;
 
-    if (attendeeCount >= maxAttendees) {
+    if (count >= maxAttendees) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "This sidequest is full" });
     }
 
+    // Insert attendee
     await client.query(
-      `
-      INSERT INTO event_attendees (sidequest_id, user_id)
-      VALUES ($1, $2)
-      `,
+      `INSERT INTO event_attendees (sidequest_id, user_id) VALUES ($1, $2)`,
       [id, user_id]
     );
 
     await client.query("COMMIT");
 
+    // ✅ Fetch full row separately AFTER commit (no FOR UPDATE needed here)
+    const { rows: full } = await pool.query(
+      `SELECT s.*,
+              u.first_name AS poster_first_name,
+              u.last_name  AS poster_last_name,
+              u.location   AS poster_location
+       FROM sidequests s
+       LEFT JOIN users u ON u.id = s.user_id
+       WHERE s.id = $1`,
+      [id]
+    );
+
     const attendees = await getAttendees(id);
-    return res.status(200).json(rowToSidequest(sidequest, attendees));
+    return res.status(200).json(rowToSidequest(full[0], attendees));
+
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("[POST /events/:id/join]", err);

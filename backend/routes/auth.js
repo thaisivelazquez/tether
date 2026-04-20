@@ -97,6 +97,8 @@ router.post("/send-otp", async (req, res) => {
     //   subject: "Your Tether verification code",
     //   html: `${code}`,
     // });
+
+    if (process.env.SEND_EMAIL_FLAG)  {
     const { data, error } = await resend.emails.send({
       from: 'Tether <auth@tethercircle.me>', 
       to: email,
@@ -109,9 +111,9 @@ router.post("/send-otp", async (req, res) => {
       return res.status(500).json({ error: "Failed to send email via Resend." });
     }
 
-    return res.json({ success: true });
-
     // return res.json({ success: true });
+  }
+    return res.json({ success: true });
   } catch (err) {
     console.error("Nodemailer error:", err.message);
     return res.status(500).json({ error: "Failed to send code." });
