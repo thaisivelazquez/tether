@@ -1,20 +1,24 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Image,
+    Platform,
+    Pressable,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 const getBaseUrl = () => {
   if (!__DEV__) return 'https://tether-production-c60a.up.railway.app';
   return Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.19.1.168:3000';
 };
+
+const PfpImg = require('../../../components/myprofile/pfp.png');
 
 type User = {
   first_name: string;
@@ -33,12 +37,20 @@ type Sidequest = {
   createdAt: string;
 };
 
-export default function SharedProfilePage() {
-  const { id } = useLocalSearchParams<{ id: string }>(); // from URL segment /profile/[id]
+type Mutual = {
+  id: string;
+  first_name: string;
+  last_name: string;
+};
+
+export default function FriendProfilePage() {
+  const params = useLocalSearchParams<{ id?: string; userId?: string }>();
+  const id = params.userId ?? params.id;
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
   const [sidequests, setSidequests] = useState<Sidequest[]>([]);
+  const [mutuals, setMutuals] = useState<Mutual[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -58,6 +70,15 @@ export default function SharedProfilePage() {
       .then((r) => r.json())
       .then((data) => { if (data.sidequests) setSidequests(data.sidequests); })
       .catch(() => {});
+
+    AsyncStorage.getItem('user_id').then((currentUserId) => {
+      if (!currentUserId) return;
+      fetch(`${getBaseUrl()}/users/mutuals?current_user_id=${currentUserId}&friend_user_id=${id}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.mutuals) setMutuals(data.mutuals); })
+        .catch(() => {});
+    });
+
   }, [id]);
 
   const formatBirthday = (dateString: string) => {
@@ -93,20 +114,51 @@ export default function SharedProfilePage() {
       </Pressable>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* Avatar */}
         <View style={s.avatarWrap}>
-          <View style={s.avatar}>
-            <Text style={s.avatarEmoji}>🙂</Text>
-          </View>
+          <Image
+            source={PfpImg}
+            style={{ width: 136, height: 136 }}
+            resizeMode="contain"
+          />
         </View>
 
+        {/* Name */}
         <Text style={s.name}>{user.first_name} {user.last_name}</Text>
+
+        {/* Bio */}
         {!!user.bio && <Text style={s.bio}>{user.bio}</Text>}
 
+        {/* Location + Birthday */}
         <View style={s.metaRow}>
           {!!user.location && <Text style={s.meta}>📍 {user.location}</Text>}
           {!!user.birthdate && <Text style={s.meta}>🎂 {formatBirthday(user.birthdate)}</Text>}
         </View>
 
+        {/* Mutuals — only shows if there are any */}
+        {mutuals.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Mutuals</Text>
+            <Text style={s.sectionSub}>
+              Friends of yours who are in {user.first_name}'s orbit 🙌
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {mutuals.map((m) => (
+                <View key={m.id} style={s.mutualItem}>
+                  <Image
+                    source={PfpImg}
+                    style={s.mutualAvatar}
+                    resizeMode="contain"
+                  />
+                  <Text style={s.mutualName}>{m.first_name} {m.last_name}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Sidequests */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>
             {user.first_name} is making {sidequests.length} thing{sidequests.length !== 1 ? 's' : ''} happen...
@@ -129,6 +181,7 @@ export default function SharedProfilePage() {
             ))
           )}
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,12 +193,9 @@ const s = StyleSheet.create({
   backRow: { paddingHorizontal: 20, paddingVertical: 12 },
   backArrow: { fontSize: 15, color: '#555', fontWeight: '500' },
   scroll: { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 60 },
+
   avatarWrap: { marginTop: 12, marginBottom: 16 },
-  avatar: {
-    width: 120, height: 120, borderRadius: 60,
-    backgroundColor: '#e8e8e8', alignItems: 'center', justifyContent: 'center',
-  },
-  avatarEmoji: { fontSize: 52 },
+
   name: { fontSize: 22, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
   bio: { fontSize: 14, color: '#555', marginBottom: 10, textAlign: 'center' },
   metaRow: {
@@ -153,8 +203,15 @@ const s = StyleSheet.create({
     flexWrap: 'wrap', justifyContent: 'center',
   },
   meta: { fontSize: 13, color: '#555' },
+
   section: { width: '100%', marginBottom: 28 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
+  sectionTitle: { fontSize: 25, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
+  sectionSub: { fontSize: 12, color: '#888', marginBottom: 12 },
+
+  mutualItem: { alignItems: 'center', marginRight: 16, width: 70 },
+  mutualAvatar: { width: 52, height: 52, marginBottom: 4 },
+  mutualName: { fontSize: 11, color: '#333', textAlign: 'center' },
+
   card: {
     backgroundColor: '#f9f9f9', borderRadius: 14, padding: 16,
     marginBottom: 10, borderWidth: 1, borderColor: '#eee',
@@ -163,6 +220,7 @@ const s = StyleSheet.create({
   cardMeta: { flexDirection: 'row', gap: 12 },
   cardMetaText: { fontSize: 12, color: '#777' },
   empty: { fontSize: 13, color: '#bbb', textAlign: 'center', marginTop: 12 },
+
   errorText: { fontSize: 15, color: '#888', marginBottom: 16 },
   backBtn: {
     backgroundColor: '#f0ebff', paddingHorizontal: 20,

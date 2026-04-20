@@ -701,28 +701,7 @@ function DraggableAvatar({
         </Pressable>
       )}
 
-      {isEditing && isSelected && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: AVATAR_SIZE + 6,
-            left: -42,
-            backgroundColor: '#fff',
-            borderRadius: 20,
-            paddingVertical: 4,
-            paddingHorizontal: 10,
-            shadowColor: '#000',
-            shadowOpacity: 0.12,
-            shadowRadius: 6,
-            elevation: 4,
-            minWidth: 130,
-          }}
-        >
-          <Text style={{ fontSize: 10, color: '#333', fontWeight: '600' }}>
-            ✕ Remove from orbit
-          </Text>
-        </View>
-      )}
+     
     </Animated.View>
   );
 }
@@ -994,20 +973,20 @@ const handleMove = async (id: string, x: number, y: number) => {
     setModal('addByPhone');
   };
 
-  const handleOpenProfile = (user: User) => {
-    router.push({
-      pathname: '/friendprofile',
-      params: {
-        userId: user.id,
-        name: user.name,
-        handle: user.handle,
-        location: user.location,
-        status: user.status,
-        avatar: user.avatar,
-        ringLevel: user.ringLevel,
-      },
-    });
-  };
+const handleOpenProfile = (user: User) => {
+  router.push({
+    pathname: '/myprofile/friendprofile',  
+    params: {
+      userId: user.id,
+      name: user.name,
+      handle: user.handle,
+      location: user.location,
+      status: user.status,
+      avatar: user.avatar,
+      ringLevel: user.ringLevel,
+    },
+  });
+};
 
   const handleTabPress = (tab: NavTabId) => {
     setActiveTab(tab);

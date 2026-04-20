@@ -214,6 +214,31 @@ router.patch("/:id", async (req, res) => {
     console.error("DB error:", err.message);
     return res.status(500).json({ error: "Server error." });
   }
+
+  // GET /users/mutuals?current_user_id=X&friend_user_id=Y
+router.get("/mutuals", async (req, res) => {
+  const { current_user_id, friend_user_id } = req.query;
+
+  if (!current_user_id || !friend_user_id) {
+    return res.status(400).json({ error: "current_user_id and friend_user_id are required." });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name
+       FROM circle c1
+       JOIN circle c2 ON c1.member_user_id = c2.member_user_id
+       JOIN users u ON u.id = c1.member_user_id
+       WHERE c1.user_id = $1
+       AND c2.user_id = $2`,
+      [current_user_id, friend_user_id]
+    );
+    return res.json({ mutuals: rows });
+  } catch (err) {
+    console.error("DB error:", err.message);
+    return res.status(500).json({ error: "Server error." });
+  }
+});
 });
 
 module.exports = router;

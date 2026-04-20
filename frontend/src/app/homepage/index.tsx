@@ -30,22 +30,18 @@ const ClosefriendsButtonImg = require('../../../components/homepage/closefriends
 
 // ✅ Responsive scale helpers
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const BASE_WIDTH = 390; // iPhone 14 base
-const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size; // responsive scale
+const BASE_WIDTH = 390;
+const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 const DISMISS_THRESHOLD = 120;
 
-
 const getBaseUrl = () => {
-  // Check if we are in production mode (Publish/Build)
   if (!__DEV__) {
     return 'https://tether-production-c60a.up.railway.app';
   }
-
-  // Otherwise, use local settings for your current dev work
-  return Platform.OS === 'web' 
-    ? 'http://localhost:3000' 
-    : 'http://172.19.1.168:3000'; // Your current local IP
+  return Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.1.168:3000';
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -336,14 +332,13 @@ function SidequestDetailModal({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [joining, setJoining] = useState(false);         // ← NEW
+  const [joining, setJoining] = useState(false);
 
   const isOwner = useMemo(() => {
     if (!sidequest || !currentUserId) return false;
     return String(sidequest.postedBy?.id) === String(currentUserId);
   }, [sidequest, currentUserId]);
 
-  // ← NEW: check if current user is already an attendee
   const isAttendee = useMemo(() => {
     if (!sidequest || !currentUserId) return false;
     return sidequest.attendees.some((a) => String(a.id) === String(currentUserId));
@@ -398,7 +393,6 @@ function SidequestDetailModal({
     }
   };
 
-  // ← NEW: join handler
   const handleJoin = async () => {
     if (!sidequest || !currentUserId) { Alert.alert('Error', 'User not loaded. Try again.'); return; }
     setJoining(true);
@@ -413,14 +407,11 @@ function SidequestDetailModal({
       const text = await res.text();
       if (!res.ok) { Alert.alert('Error', text || 'Failed to join'); return; }
 
-      // Optimistically parse updated attendee list from response if available,
-      // otherwise just re-fetch by pushing the current user as a placeholder
       let updatedSidequest: Sidequest;
       try {
         const json = JSON.parse(text);
-        updatedSidequest = json; // if backend returns the full updated event
+        updatedSidequest = json;
       } catch {
-        // fallback: optimistically add user to attendees list
         updatedSidequest = {
           ...sidequest,
           attendees: [
@@ -503,7 +494,6 @@ function SidequestDetailModal({
                 )}
               </View>
 
-              {/* ← NEW: Join button for non-owners */}
               {!isOwner && (
                 <View style={{ marginTop: rs(30) }}>
                   {isAttendee ? (
@@ -577,6 +567,7 @@ export default function HomePage() {
   const [sidequests, setSidequests] = useState<Sidequest[]>([]);
   const [selectedSidequest, setSelectedSidequest] = useState<Sidequest | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false); // ✅ only declared here
 
   useEffect(() => {
     AsyncStorage.getItem('user_id').then((id) => setCurrentUserId(id));
@@ -586,6 +577,7 @@ export default function HomePage() {
     try {
       const userId = await AsyncStorage.getItem('user_id');
       if (!userId) return;
+
       const res = await fetch(`${getBaseUrl()}/events?user_id=${userId}`);
       if (res.ok) {
         const data = await res.json();
@@ -596,7 +588,21 @@ export default function HomePage() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchSidequests(); }, [fetchSidequests]));
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchSidequests();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchSidequests]);
+
+  // ✅ FIX: empty deps array so it re-runs on every screen focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchSidequests();
+    }, [])
+  );
 
   useEffect(() => {
     Animated.timing(whiteOverlay, {
@@ -608,7 +614,9 @@ export default function HomePage() {
   }, []);
 
   const filteredData = useMemo(() => {
-    if (filter === 'close-friends') return sidequests.filter((s) => s.circleStatus === 'close-friends');
+    if (filter === 'close-friends') {
+      return sidequests.filter((s) => s.circleStatus === 'close-friends');
+    }
     return sidequests;
   }, [filter, sidequests]);
 
@@ -623,7 +631,9 @@ export default function HomePage() {
   }
 
   function handleSidequestUpdated(updated: Sidequest) {
-    setSidequests((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setSidequests((prev) =>
+      prev.map((s) => (s.id === updated.id ? updated : s))
+    );
     setSelectedSidequest(updated);
   }
 
@@ -635,41 +645,42 @@ export default function HomePage() {
             <Text style={[styles.formHeadline, { fontSize: rs(22) }]}>
               what's everyone{'\n'}up to this week?
             </Text>
-            <View style={localButtonStyles.row}>
-  <View style={localButtonStyles.slot}>
-    <Pressable
-      onPress={() => setFilter('all')}
-      style={({ pressed }) => ({
-        opacity: pressed ? 0.8 : filter === 'all' ? 1 : 0.5,
-        alignItems: 'center',
-        justifyContent: 'center',
-      })}
-    >
-      <Image
-        source={AllbuttonImg}
-        style={localButtonStyles.allImg}
-        resizeMode="contain"
-      />
-    </Pressable>
-  </View>
 
-  <View style={localButtonStyles.slot}>
-    <Pressable
-      onPress={() => setFilter('close-friends')}
-      style={({ pressed }) => ({
-        opacity: pressed ? 0.8 : filter === 'close-friends' ? 1 : 0.5,
-        alignItems: 'center',
-        justifyContent: 'center',
-      })}
-    >
-      <Image
-        source={ClosefriendsButtonImg}
-        style={localButtonStyles.closeImg}
-        resizeMode="contain"
-      />
-    </Pressable>
-  </View>
-</View>
+            <View style={localButtonStyles.row}>
+              <View style={localButtonStyles.slot}>
+                <Pressable
+                  onPress={() => setFilter('all')}
+                  style={({ pressed }) => ({
+                    opacity: pressed ? 0.8 : filter === 'all' ? 1 : 0.5,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  })}
+                >
+                  <Image
+                    source={AllbuttonImg}
+                    style={localButtonStyles.allImg}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              </View>
+
+              <View style={localButtonStyles.slot}>
+                <Pressable
+                  onPress={() => setFilter('close-friends')}
+                  style={({ pressed }) => ({
+                    opacity: pressed ? 0.8 : filter === 'close-friends' ? 1 : 0.5,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  })}
+                >
+                  <Image
+                    source={ClosefriendsButtonImg}
+                    style={localButtonStyles.closeImg}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              </View>
+            </View>
           </View>
 
           <FlatList
@@ -678,14 +689,32 @@ export default function HomePage() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{
               paddingBottom: rs(140),
-              flexGrow: 1,
               paddingHorizontal: rs(16),
+              flexGrow: 1,
             }}
+            alwaysBounceVertical={true}
+            bounces={true}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            progressViewOffset={50}
             ListEmptyComponent={
-              <Text style={localStyles.emptyText}>no sidequests yet, why not create one?</Text>
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={localStyles.emptyText}>
+                  no sidequests yet, why not create one?
+                </Text>
+              </View>
             }
             renderItem={({ item }) => (
-              <SidequestCard sidequest={item} onPress={() => setSelectedSidequest(item)} />
+              <SidequestCard
+                sidequest={item}
+                onPress={() => setSelectedSidequest(item)}
+              />
             )}
           />
         </View>
@@ -705,7 +734,11 @@ export default function HomePage() {
         onCancel={() => setSheetOpen(false)}
       />
 
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} onAddPress={() => setSheetOpen(true)} />
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onAddPress={() => setSheetOpen(true)}
+      />
 
       <Animated.View
         pointerEvents="none"

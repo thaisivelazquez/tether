@@ -24,15 +24,12 @@ const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
 const SWIPE_THRESHOLD = 80;
 
 const getBaseUrl = () => {
-  // Check if we are in production mode (Publish/Build)
   if (!__DEV__) {
     return 'https://tether-production-c60a.up.railway.app';
   }
-
-  // Otherwise, use local settings for your current dev work
-  return Platform.OS === 'web' 
-    ? 'http://localhost:3000' 
-    : 'http://172.19.1.168:3000'; // Your current local IP
+  return Platform.OS === 'web'
+    ? 'http://localhost:3000'
+    : 'http://172.19.1.168:3000';
 };
 
 type FriendRequest = {
@@ -57,6 +54,8 @@ type EventNotification = {
 };
 
 type NotificationItem = FriendRequest | EventNotification;
+
+// ─── Swipeable wrapper ───────────────────────────────────────────────────────
 
 function SwipeableCard({
   children,
@@ -134,6 +133,8 @@ function SwipeableCard({
     </View>
   );
 }
+
+// ─── Cards ───────────────────────────────────────────────────────────────────
 
 function FriendRequestCard({
   item,
@@ -245,6 +246,8 @@ function EventCard({
   );
 }
 
+// ─── Main page ───────────────────────────────────────────────────────────────
+
 export default function NotificationsPage() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -260,39 +263,68 @@ export default function NotificationsPage() {
     try {
       setLoading(true);
 
-      const [reqRes, evtRes] = await Promise.all([
+      // Fetch friend requests, all events, and the current user's friend list
+      // (including their close-friends/inner-circle list) in parallel.
+      const [reqRes, evtRes, friendsRes] = await Promise.all([
         fetch(`${getBaseUrl()}/friends/requests?user_id=${userId}`),
         fetch(`${getBaseUrl()}/events?user_id=${userId}`),
+        fetch(`${getBaseUrl()}/friends?user_id=${userId}`),  // ← returns friend + inner-circle info
       ]);
 
-      const reqData = reqRes.ok ? await reqRes.json() : { requests: [] };
-      const evtData = reqRes.ok ? await evtRes.json() : [];
+      const reqData  = reqRes.ok     ? await reqRes.json()     : { requests: [] };
+      const evtData  = evtRes.ok     ? await evtRes.json()     : [];
+      const friendsData = friendsRes.ok ? await friendsRes.json() : { friends: [], closeFriends: [] };
 
+      // Build fast-lookup sets from the friends response.
+      // Adjust the field names below to match whatever your API actually returns.
+      //
+      //  friendsData.friends      → array of { id, ... }  (all accepted friends)
+      //  friendsData.closeFriends → array of { id, ... }  (inner-circle friends)
+      const friendIds      = new Set<string>(
+        (friendsData.friends      ?? []).map((f: any) => String(f.id))
+      );
+      const closeFriendIds = new Set<string>(
+        (friendsData.closeFriends ?? []).map((f: any) => String(f.id))
+      );
+
+      // ── Friend requests ──────────────────────────────────────────────────
       const friendRequests: FriendRequest[] = (reqData.requests ?? []).map((r: any) => ({
         ...r,
         type: 'friend_request' as const,
       }));
 
+      // ── Event notifications ──────────────────────────────────────────────
       const eventNotifs: EventNotification[] = (Array.isArray(evtData) ? evtData : [])
         .filter((e: any) => {
-          const creatorId =
-            e.postedBy?.id ??
-            e.creator_id ??
-            e.user_id ??
-            e.posted_by_id;
+          const creatorId = String(
+            e.postedBy?.id ?? e.creator_id ?? e.user_id ?? e.posted_by_id
+          );
 
-          return String(creatorId) !== String(userId);
+          // Never show your own events.
+          if (creatorId === String(userId)) return false;
+
+          const circleStatus: string = e.circleStatus ?? e.circle_status ?? 'everyone';
+
+          if (circleStatus === 'close-friends') {
+            // Only show if the current user is in the creator's inner circle.
+            return closeFriendIds.has(creatorId);
+          }
+
+          // 'everyone' → show if the current user is any kind of friend with
+          // the creator (inner-circle friends are a subset of friends, so
+          // checking friendIds is sufficient).
+          return friendIds.has(creatorId);
         })
         .map((e: any) => ({
           id: e.id,
           type: 'event' as const,
-          event_title: e.title ?? e.event_title ?? '',
-          event_des: e.description ?? e.event_des ?? '',
-          location: e.location ?? '',
-          time_of_event: e.startTime ?? e.time_of_event ?? '',
+          event_title: e.title          ?? e.event_title ?? '',
+          event_des:   e.description    ?? e.event_des   ?? '',
+          location:    e.location       ?? '',
+          time_of_event: e.startTime    ?? e.time_of_event ?? '',
           circle_status: e.circleStatus ?? e.circle_status ?? 'everyone',
           creator_first_name: e.postedBy?.name?.split(' ')[0] ?? e.creator_first_name ?? '',
-          creator_last_name: e.postedBy?.name?.split(' ')[1] ?? e.creator_last_name ?? '',
+          creator_last_name:  e.postedBy?.name?.split(' ')[1] ?? e.creator_last_name  ?? '',
         }));
 
       setNotifications([...friendRequests, ...eventNotifs]);
@@ -316,9 +348,8 @@ export default function NotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'accepted' }),
       });
-
       setNotifications((prev) =>
-        prev.filter((nItem) => !(nItem.type === 'friend_request' && nItem.id === item.id))
+        prev.filter((n) => !(n.type === 'friend_request' && n.id === item.id))
       );
     } catch (err) {
       console.error('Accept failed:', err);
@@ -332,9 +363,8 @@ export default function NotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'declined' }),
       });
-
       setNotifications((prev) =>
-        prev.filter((nItem) => !(nItem.type === 'friend_request' && nItem.id === item.id))
+        prev.filter((n) => !(n.type === 'friend_request' && n.id === item.id))
       );
     } catch (err) {
       console.error('Decline failed:', err);
@@ -379,7 +409,6 @@ export default function NotificationsPage() {
                   />
                 );
               }
-
               return (
                 <EventCard
                   item={item}
@@ -400,6 +429,8 @@ export default function NotificationsPage() {
     </View>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const n = StyleSheet.create({
   pageTitle: {
