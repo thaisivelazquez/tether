@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -45,6 +46,54 @@ type Attendee = {
   name: string;
   location: string;
 };
+// ─── Time-based gradient background ────────────────────────────────────────
+
+type ThemeSpec = {
+  gradient: [string, string];
+};
+
+function getThemeForTime(date: Date = new Date()): ThemeSpec {
+  const hour = date.getHours();
+
+  // Daytime, 6AM–4PM
+  if (hour >= 6 && hour < 16) {
+    return {
+      gradient: ['#e2cbee', '#f3c48fb1'],
+    };
+  }
+
+  // "Afternoon/Sunset, ..." swatch: lavender to blush
+  if (hour >= 16 && hour < 20) {
+    return {
+      gradient: ['#fdb352', '#f6d9e6'],
+    };
+  }
+
+  // "Night, 8pm–..." swatch: deep navy/indigo
+  return {
+    gradient: ['#40408c', '#7b7baf'],
+  };
+}
+
+function TimeGradientBackground() {
+  const [theme, setTheme] = useState<ThemeSpec>(() => getThemeForTime());
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTheme(getThemeForTime()), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFillObject}>
+      <LinearGradient
+        colors={theme.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+    </View>
+  );
+}
 
 type Sidequest = {
   id: string;
@@ -224,8 +273,9 @@ export default function ProfilePage() {
   }, [fetchSidequests]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <SafeAreaView style={[profileStyles.container, { paddingTop: insets.top }]}>
+  <View style={{ flex: 1 }}>
+    <TimeGradientBackground />
+    <SafeAreaView style={[profileStyles.container, { paddingTop: insets.top, backgroundColor: 'transparent' }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: rs(140) }}

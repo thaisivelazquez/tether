@@ -28,6 +28,7 @@ const getBaseUrl = () => {
     : 'http://172.19.10.138:3000'; // Your current local IP
 };
 
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ITEM_HEIGHT = 44;
@@ -415,7 +416,7 @@ export default function CreateSidequestForm({ onClose }: { onClose: () => void }
   return (
     <>
       <ScrollView
-        style={[styles.flex, { backgroundColor: '#111' }]}
+        style={[styles.flex, { backgroundColor: '#ffffff' }]}
         contentContainerStyle={{
           paddingBottom: insets.bottom + 120,
           paddingHorizontal: 16,
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
     borderColor: '#333',
     borderRadius: 12,
     padding: 14,
-    color: '#fff',
+    color: '#000000',
     fontSize: 16,
     marginBottom: 16,
   },
@@ -604,7 +605,7 @@ const styles = StyleSheet.create({
   },
   pillFlex: { flex: 1 },
   pillText: {
-    color: '#fff',
+    color: '#000000',
     fontSize: 14,
   },
   input: {
@@ -612,7 +613,7 @@ const styles = StyleSheet.create({
     borderColor: '#000000',
     borderRadius: 12,
     padding: 12,
-    color: '#fff',
+    color: '#000000',
     fontSize: 14,
     marginBottom: 10,
   },
