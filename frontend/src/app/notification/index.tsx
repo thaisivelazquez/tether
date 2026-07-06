@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Animated,
   Dimensions,
@@ -54,8 +55,57 @@ type EventNotification = {
 };
 
 type NotificationItem = FriendRequest | EventNotification;
+// ─── Time-based gradient background ────────────────────────────────────────
+
+type ThemeSpec = {
+  gradient: [string, string];
+};
+
+function getThemeForTime(date: Date = new Date()): ThemeSpec {
+  const hour = date.getHours();
+
+  // Daytime, 6AM–4PM
+  if (hour >= 6 && hour < 16) {
+    return {
+      gradient: ['#fdf3e2', '#f3c48f'],
+    };
+  }
+
+  // Afternoon/Sunset, 4PM–8PM
+  if (hour >= 16 && hour < 20) {
+    return {
+      gradient: ['#d9d3f2', '#f6d9e6'],
+    };
+  }
+
+  // Night, 8PM–6AM
+  return {
+    gradient: ['#17172f', '#242452'],
+  };
+}
+
+function TimeGradientBackground() {
+  const [theme, setTheme] = useState<ThemeSpec>(() => getThemeForTime());
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTheme(getThemeForTime()), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFillObject}>
+      <LinearGradient
+        colors={theme.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+    </View>
+  );
+}
 
 // ─── Swipeable Card ───────────────────────────────────────────────────────────
+
 
 function SwipeableCard({
   children,
@@ -337,8 +387,9 @@ export default function NotificationsPage() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <SafeAreaView style={{ flex: 1, paddingTop: insets.top }}>
+  <View style={{ flex: 1 }}>
+    <TimeGradientBackground />
+    <SafeAreaView style={{ flex: 1, paddingTop: insets.top, backgroundColor: 'transparent' }}>
         <Text style={n.pageTitle}>Notifications</Text>
 
         {!loading && notifications.length === 0 ? (
