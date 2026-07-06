@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -25,10 +26,6 @@ import { styles } from '../../../components/homepage/homepagestyles';
 import { Navbar, NavTabId } from '../../../components/navbar/navbar';
 import CreateSidequestForm from '../modals/sidequest/create';
 
-const AllbuttonImg = require('../../../components/homepage/allbuttons.png');
-const ClosefriendsButtonImg = require('../../../components/homepage/closefriendsbutton.png');
-
-// ✅ Responsive scale helpers
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BASE_WIDTH = 390;
 const rs = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
@@ -43,8 +40,6 @@ const getBaseUrl = () => {
     ? 'http://localhost:3000'
     : 'http://172.19.10.138:3000';
 };
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Attendee = {
   id: string;
@@ -68,8 +63,6 @@ type Sidequest = {
   location: string;
   maxAttendees: number;
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatTime = (d: Date) =>
   d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -95,8 +88,52 @@ function partsToIso(date: string, time: string): string {
   return new Date(`${date}T${time}:00`).toISOString();
 }
 
-// ─── SidequestCard ────────────────────────────────────────────────────────────
+type ThemeSpec = {
+  gradient: [string, string];
+};
 
+function getThemeForTime(date: Date = new Date()): ThemeSpec {
+  const hour = date.getHours();
+
+  // "Daytime, 6AM–..." swatch: warm peach/cream
+  if (hour >= 6 && hour < 16) {
+    return {
+      gradient: ['#fdf3e2', '#f3c48f'],
+    };
+  }
+
+  // "Afternoon/Sunset, ..." swatch: lavender to blush
+  if (hour >= 16 && hour < 20) {
+    return {
+      gradient: ['#d9d3f2', '#f6d9e6'],
+    };
+  }
+
+  // "Night, 8pm–..." swatch: deep navy/indigo
+  return {
+    gradient: ['#17172f', '#242452'],
+  };
+}
+
+function TimeGradientBackground() {
+  const [theme, setTheme] = useState<ThemeSpec>(() => getThemeForTime());
+
+  useEffect(() => {
+    const id = setInterval(() => setTheme(getThemeForTime()), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFillObject}>
+      <LinearGradient
+        colors={theme.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+    </View>
+  );
+}
 function SidequestCard({
   sidequest,
   onPress,
@@ -111,7 +148,7 @@ function SidequestCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [cardStyles.card, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [cardStyles.card, pressed && { opacity: 0.88 }]}
     >
       <View style={cardStyles.headerRow}>
         <Text style={cardStyles.title}>{sidequest.title}</Text>
@@ -150,8 +187,6 @@ function SidequestCard({
     </Pressable>
   );
 }
-
-// ─── EditSidequestForm ────────────────────────────────────────────────────────
 
 function EditSidequestForm({
   sidequest,
@@ -232,7 +267,7 @@ function EditSidequestForm({
         circleStatus: vis,
       });
       onClose();
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Network error while updating');
     } finally {
       setSaving(false);
@@ -314,8 +349,6 @@ function EditSidequestForm({
   );
 }
 
-// ─── SidequestDetailModal ─────────────────────────────────────────────────────
-
 function SidequestDetailModal({
   sidequest,
   currentUserId,
@@ -357,7 +390,7 @@ function SidequestDetailModal({
     } else {
       translateY.setValue(SCREEN_HEIGHT);
     }
-  }, [sidequest]);
+  }, [sidequest, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -397,20 +430,17 @@ function SidequestDetailModal({
     if (!sidequest || !currentUserId) { Alert.alert('Error', 'User not loaded. Try again.'); return; }
     setJoining(true);
     try {
-      const res = await fetch(`${getBaseUrl()}/events/${sidequest.id}/join`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: currentUserId }),
-        }
-      );
+      const res = await fetch(`${getBaseUrl()}/events/${sidequest.id}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUserId }),
+      });
       const text = await res.text();
       if (!res.ok) { Alert.alert('Error', text || 'Failed to join'); return; }
 
       let updatedSidequest: Sidequest;
       try {
-        const json = JSON.parse(text);
-        updatedSidequest = json;
+        updatedSidequest = JSON.parse(text);
       } catch {
         updatedSidequest = {
           ...sidequest,
@@ -499,7 +529,7 @@ function SidequestDetailModal({
                   {isAttendee ? (
                     <View style={{ padding: rs(14), backgroundColor: '#1a3d1a', borderRadius: rs(12) }}>
                       <Text style={{ color: '#4dff88', textAlign: 'center', fontSize: rs(14) }}>
-                        ✅ You're going!
+                        ✅ You&apos;re going!
                       </Text>
                     </View>
                   ) : isFull ? (
@@ -555,8 +585,6 @@ function SidequestDetailModal({
   );
 }
 
-// ─── HomePage ─────────────────────────────────────────────────────────────────
-
 export default function HomePage() {
   const insets = useSafeAreaInsets();
   const whiteOverlay = useRef(new Animated.Value(1)).current;
@@ -567,7 +595,7 @@ export default function HomePage() {
   const [sidequests, setSidequests] = useState<Sidequest[]>([]);
   const [selectedSidequest, setSelectedSidequest] = useState<Sidequest | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false); // ✅ only declared here
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('user_id').then((id) => setCurrentUserId(id));
@@ -597,11 +625,10 @@ export default function HomePage() {
     }
   }, [fetchSidequests]);
 
-  // ✅ FIX: empty deps array so it re-runs on every screen focus
   useFocusEffect(
     useCallback(() => {
       fetchSidequests();
-    }, [])
+    }, [fetchSidequests])
   );
 
   useEffect(() => {
@@ -611,7 +638,7 @@ export default function HomePage() {
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [whiteOverlay]);
 
   const filteredData = useMemo(() => {
     if (filter === 'close-friends') {
@@ -639,47 +666,29 @@ export default function HomePage() {
 
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.slide}>
-          <View style={[styles.formBlock, { marginBottom: rs(16) }]}>
-           <Text style={[styles.formHeadline, { fontSize: rs(22), fontFamily: undefined }]}>
-  what's everyone{'\n'}up to this week?
-</Text>
+      <TimeGradientBackground />
 
-            <View style={localButtonStyles.row}>
-              <View style={localButtonStyles.slot}>
-                <Pressable
-                  onPress={() => setFilter('all')}
-                  style={({ pressed }) => ({
-                    opacity: pressed ? 0.8 : filter === 'all' ? 1 : 0.5,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  })}
-                >
-                  <Image
-                    source={AllbuttonImg}
-                    style={localButtonStyles.allImg}
-                    resizeMode="contain"
-                  />
-                </Pressable>
-              </View>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top, backgroundColor: 'transparent' }]}>
+        <View style={[styles.slide, { backgroundColor: 'transparent' }]}>
+          <View style={[styles.formBlock, { marginBottom: rs(16), backgroundColor: 'transparent' }]}>
+            <Text style={[styles.formHeadline, { fontSize: rs(22), fontFamily: undefined }]}>
+              what&apos;s everyone{'\n'}up to this week?
+            </Text>
 
-              <View style={localButtonStyles.slot}>
-                <Pressable
-                  onPress={() => setFilter('close-friends')}
-                  style={({ pressed }) => ({
-                    opacity: pressed ? 0.8 : filter === 'close-friends' ? 1 : 0.5,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  })}
-                >
-                  <Image
-                    source={ClosefriendsButtonImg}
-                    style={localButtonStyles.closeImg}
-                    resizeMode="contain"
-                  />
-                </Pressable>
-              </View>
+            <View style={pillStyles.row}>
+              <Pressable
+                onPress={() => setFilter('all')}
+                style={[pillStyles.pill, filter === 'all' && pillStyles.pillActive]}
+              >
+                <Text style={[pillStyles.pillText, filter === 'all' && pillStyles.pillTextActive]}>ALL</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setFilter('close-friends')}
+                style={[pillStyles.pill, filter === 'close-friends' && pillStyles.pillInactive]}
+              >
+                <Text style={pillStyles.pillText}>CLOSE FRIENDS</Text>
+              </Pressable>
             </View>
           </View>
 
@@ -748,8 +757,6 @@ export default function HomePage() {
   );
 }
 
-// ─── AddSidequestSheet ────────────────────────────────────────────────────────
-
 function AddSidequestSheet({
   visible,
   onClose,
@@ -767,7 +774,7 @@ function AddSidequestSheet({
       useNativeDriver: true,
       bounciness: 4,
     }).start();
-  }, [visible]);
+  }, [visible, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -797,22 +804,27 @@ function AddSidequestSheet({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const localStyles = StyleSheet.create({
   whiteOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#FFFFFF',
   },
   emptyText: {
     textAlign: 'center',
-    marginTop: rs(40),
-    color: '#666',
+    marginTop: rs(120),
+    color: 'rgba(70, 60, 75, 0.45)',
     fontSize: rs(14),
   },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheetContainer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     height: SHEET_HEIGHT,
     backgroundColor: '#111',
     borderTopLeftRadius: rs(24),
@@ -835,12 +847,17 @@ const localStyles = StyleSheet.create({
 
 const cardStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#9b9494',
-    borderRadius: rs(16),
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: rs(18),
     padding: rs(16),
     marginBottom: rs(12),
     borderWidth: 1,
-    borderColor: '#9b9494',
+    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -850,9 +867,9 @@ const cardStyles = StyleSheet.create({
   },
   title: { color: '#fff', fontSize: rs(15), fontWeight: '700', flex: 1, marginRight: rs(8) },
   badge: { borderRadius: 999, paddingHorizontal: rs(8), paddingVertical: rs(3) },
-  badgeCF: { backgroundColor: '#2d1f3d' },
-  badgeAll: { backgroundColor: '#1a2d1f' },
-  badgeText: { color: '#dfdbe1', fontSize: rs(11), fontWeight: '600' },
+  badgeCF: { backgroundColor: 'rgba(45,31,61,0.45)' },
+  badgeAll: { backgroundColor: 'rgba(26,45,31,0.45)' },
+  badgeText: { color: '#fff', fontSize: rs(11), fontWeight: '600' },
   desc: { color: '#ffffff', fontSize: rs(13), marginBottom: rs(10), lineHeight: rs(18) },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: rs(4), gap: rs(4) },
   meta: { color: '#ffffff', fontSize: rs(12) },
@@ -940,26 +957,33 @@ const formStyles = StyleSheet.create({
   btnCancelText: { color: '#777', fontSize: rs(15) },
 });
 
-const localButtonStyles = StyleSheet.create({
+const pillStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
+    gap: rs(16),
+    marginTop: rs(14),
+  },
+  pill: {
+    minWidth: rs(150),
+    height: rs(42),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    marginTop: rs(12),
-    gap: rs(12),
+    backgroundColor: 'rgba(255,255,255,0.42)',
   },
-  slot: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  pillActive: {
+    backgroundColor: 'rgba(255,255,255,0.88)',
   },
-  allImg: {
-    width: rs(150),
-    height: rs(66),
+  pillInactive: {
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
-  closeImg: {
-    width: rs(150),
-    height: rs(66),
-    marginLeft: rs(20), 
+  pillText: {
+    fontSize: rs(14),
+    fontWeight: '600',
+    color: '#4A4650',
+    letterSpacing: 0.3,
+  },
+  pillTextActive: {
+    color: '#202020',
   },
 });
