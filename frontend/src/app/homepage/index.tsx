@@ -98,20 +98,20 @@ function getThemeForTime(date: Date = new Date()): ThemeSpec {
   // "Daytime, 6AM–..." swatch: warm peach/cream
   if (hour >= 6 && hour < 16) {
     return {
-      gradient: ['#fdf3e2', '#f3c48f'],
+      gradient: ['#e2cbee', '#f3c48fb1'],
     };
   }
 
   // "Afternoon/Sunset, ..." swatch: lavender to blush
   if (hour >= 16 && hour < 20) {
     return {
-      gradient: ['#d9d3f2', '#f6d9e6'],
+      gradient: ['#fdb352', '#f6d9e6'],
     };
   }
 
   // "Night, 8pm–..." swatch: deep navy/indigo
   return {
-    gradient: ['#17172f', '#242452'],
+    gradient: ['#40408c', '#7b7baf'],
   };
 }
 
